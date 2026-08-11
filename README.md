@@ -185,6 +185,29 @@ ingress:
 network. The connection remains encrypted, but the upstream server identity is
 not verified.
 
+### Unraid authentication
+
+The Unraid adapter can sign in on the Home Assistant server and retain the
+upstream session without exposing the credentials to the browser. Store the
+credentials in `secrets.yaml`:
+
+```yaml
+ingress:
+  unraid:
+    title: Unraid
+    icon: mdi:nas
+    url: http://192.168.10.45
+    index: Main
+    adapter: unraid
+    require_admin: true
+    username: !secret unraid_username
+    password: !secret unraid_password
+```
+
+All Home Assistant administrators who can open this panel share the configured
+Unraid session. Response rewrite rules may still be needed for Unraid plugins
+that use root-relative URLs.
+
 ## Multiple Tabs
 
 With the following configuration, you can display web pages in multiple tabs without reloading the iframe when switching tabs.

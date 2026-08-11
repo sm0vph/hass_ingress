@@ -3,6 +3,7 @@ from homeassistant.components.frontend import EVENT_PANELS_UPDATED  # type: igno
 import os
 import re
 import time
+import asyncio
 from typing import TYPE_CHECKING
 
 from .const import LOGGER as _LOGGER
@@ -50,6 +51,8 @@ class IngressCfg:
     static_token = ""
     verify_ssl = True
     adapter = ""
+    username = ""
+    password = ""
     rewrites: list[RewriteCfg] = []
     sub_apps: list["IngressCfg"] = []
 
@@ -58,6 +61,9 @@ class IngressCfg:
             (k, v) for k, v in kwargs.items() if v is not None and v != getattr(self, k, None)
         )
         self.token: "Token" = {"value": "", "expire": 0}
+        self.adapter_cookies: dict[str, str] = {}
+        self.adapter_lock = asyncio.Lock()
+        self.adapter_login_attempted = False
 
     def remove_token_from_cookie(self, cookie):
         if (cookie_re := self._cookie_name_re) is None:

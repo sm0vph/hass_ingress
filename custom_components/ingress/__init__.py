@@ -8,6 +8,8 @@ from homeassistant.const import (
     CONF_NAME,
     CONF_PATH,
     CONF_URL,
+    CONF_USERNAME,
+    CONF_PASSWORD,
 )
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
@@ -100,7 +102,9 @@ CONFIG_SCHEMA = vol.Schema(
                     vol.Optional(CONF_STATIC_TOKEN): cv.string,
                     vol.Optional(CONF_EXPIRE_TIME): cv.positive_int,
                     vol.Optional(CONF_VERIFY_SSL, default=True): cv.boolean,
-                    vol.Optional(CONF_ADAPTER): vol.In(("unifi",)),
+                    vol.Optional(CONF_ADAPTER): vol.In(("unifi", "unraid")),
+                    vol.Optional(CONF_USERNAME): cv.string,
+                    vol.Optional(CONF_PASSWORD): cv.string,
                 }
             )
         ),
@@ -299,6 +303,8 @@ def _parse_config(
                     static_token=data.get(CONF_STATIC_TOKEN),
                     verify_ssl=data[CONF_VERIFY_SSL],
                     adapter=data.get(CONF_ADAPTER),
+                    username=data.get(CONF_USERNAME),
+                    password=data.get(CONF_PASSWORD),
                 )
                 url += sub_path
                 if work_mode in (WorkMode.INGRESS, WorkMode.SUBAPP):
