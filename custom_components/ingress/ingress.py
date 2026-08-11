@@ -25,6 +25,7 @@ from .unraid import (
     add_unraid_cookies,
     ensure_unraid_login,
     is_unraid_login_redirect,
+    normalize_ingress_path,
 )
 
 if TYPE_CHECKING:
@@ -219,9 +220,7 @@ document.querySelector("ha-panel-ingress").setProperties({{panel: {{
         # Adapted applications can occasionally retain a previously injected
         # ingress prefix in cached JavaScript. The router has already consumed
         # the first prefix; strip any repetitions before forwarding upstream.
-        repeated_prefix = f"{API_BASE}/{cfg.name}/"
-        while path.startswith(repeated_prefix):
-            path = path[len(repeated_prefix) :]
+        path = normalize_ingress_path(path, f"{API_BASE}/{cfg.name}")
         url = _create_url(cfg, path)
         try:
             # Websocket

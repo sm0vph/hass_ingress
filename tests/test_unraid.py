@@ -18,9 +18,19 @@ spec.loader.exec_module(unraid)
 add_unraid_cookies = unraid.add_unraid_cookies
 add_basic_auth = unraid.add_basic_auth
 is_unraid_login_redirect = unraid.is_unraid_login_redirect
+normalize_ingress_path = unraid.normalize_ingress_path
 
 
 class UnraidAdapterTest(unittest.TestCase):
+    def test_repeated_ingress_prefix_with_leading_slash_is_removed(self):
+        self.assertEqual(
+            normalize_ingress_path(
+                "/api/ingress/proxmox/api2/extjs/nodes/pve2/lxc/101/config",
+                "/api/ingress/proxmox",
+            ),
+            "api2/extjs/nodes/pve2/lxc/101/config",
+        )
+
     def test_generic_basic_auth_is_added_server_side(self):
         cfg = SimpleNamespace(username="alice", password="secret")
         headers = {}

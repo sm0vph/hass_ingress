@@ -126,6 +126,15 @@ def _disable_adapted_response_cache(headers: dict[str, list[str]]) -> None:
     headers["Cache-Control"] = ["no-store"]
 
 
+def normalize_ingress_path(path: str, ingress_path: str) -> str:
+    """Remove an ingress prefix accidentally retained in a forwarded path."""
+    path = path.lstrip("/")
+    prefix = ingress_path.strip("/") + "/"
+    while path.startswith(prefix):
+        path = path[len(prefix) :].lstrip("/")
+    return path
+
+
 def _rewrite_location(value: str, upstream_host: str | None, ingress_path: str) -> str:
     parsed = urlsplit(value)
     if parsed.scheme and parsed.hostname != upstream_host:
