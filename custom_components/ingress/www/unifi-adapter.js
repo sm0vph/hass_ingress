@@ -75,10 +75,17 @@
   };
 
   const rewriteNode = (node) => {
-    if (!(node instanceof Element)) return;
-    for (const attribute of ["src", "href", "action"]) {
-      if (node.hasAttribute(attribute)) {
-        node.setAttribute(attribute, rewrite(node.getAttribute(attribute)));
+    const rewriteElement = (element) => {
+      for (const attribute of ["src", "href", "action", "poster"]) {
+        if (element.hasAttribute(attribute)) {
+          element.setAttribute(attribute, rewrite(element.getAttribute(attribute)));
+        }
+      }
+    };
+    if (node instanceof Element) rewriteElement(node);
+    if (typeof node?.querySelectorAll === "function") {
+      for (const element of node.querySelectorAll("[src],[href],[action],[poster]")) {
+        rewriteElement(element);
       }
     }
   };
@@ -119,6 +126,15 @@
       rewriteNode(node);
       return nativeMethod.call(this, node, ...rest);
     };
+  }
+
+  const mutationRoot = document.documentElement;
+  if (mutationRoot) {
+    new MutationObserver((records) => {
+      for (const record of records) {
+        for (const node of record.addedNodes) rewriteNode(node);
+      }
+    }).observe(mutationRoot, { childList: true, subtree: true });
   }
 
   for (const method of ["pushState", "replaceState"]) {
