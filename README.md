@@ -179,11 +179,18 @@ ingress:
     url: https://192.168.10.46:11443
     adapter: unifi
     verify_ssl: false
+    username: !secret unifi_username
+    password: !secret unifi_password
 ```
 
 `verify_ssl` defaults to `true`. Disable it only for a trusted device on a trusted
 network. The connection remains encrypted, but the upstream server identity is
 not verified.
+
+When `username` and `password` are configured, the adapter signs in to UniFi OS
+on the Home Assistant server, retains the private `TOKEN` cookie and CSRF token,
+and renews the session after an unauthorized response. The credentials are not
+sent to the browser.
 
 ### Unraid authentication
 

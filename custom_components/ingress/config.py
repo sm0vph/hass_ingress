@@ -62,6 +62,7 @@ class IngressCfg:
         )
         self.token: "Token" = {"value": "", "expire": 0}
         self.adapter_cookies: dict[str, str] = {}
+        self.adapter_headers: dict[str, str] = {}
         self.adapter_lock = asyncio.Lock()
         self.adapter_login_attempted = False
 

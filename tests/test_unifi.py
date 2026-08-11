@@ -1,6 +1,7 @@
 """Tests for the UniFi ingress response adapter."""
 
 import asyncio
+from http.cookies import SimpleCookie
 import importlib.util
 from pathlib import Path
 from types import SimpleNamespace
@@ -16,6 +17,8 @@ SPEC.loader.exec_module(unifi)
 _JS_NAVIGATION = unifi._JS_NAVIGATION
 _rewrite_cookie = unifi._rewrite_cookie
 _rewrite_location = unifi._rewrite_location
+add_unifi_credentials = unifi.add_unifi_credentials
+update_unifi_session = unifi.update_unifi_session
 
 
 class FakeResponse:
@@ -30,6 +33,27 @@ class FakeResponse:
 
 
 class UnifiAdapterTest(unittest.TestCase):
+    def test_private_credentials_replace_browser_session(self):
+        cfg = SimpleNamespace(
+            adapter_cookies={"TOKEN": "private"},
+            adapter_headers={"X-Csrf-Token": "csrf"},
+        )
+        headers = {"Cookie": "theme=dark; TOKEN=browser"}
+        add_unifi_credentials(headers, cfg)
+        self.assertEqual(headers["Cookie"], "theme=dark; TOKEN=private")
+        self.assertEqual(headers["X-Csrf-Token"], "csrf")
+
+    def test_session_rotation_is_captured(self):
+        cookies = SimpleCookie()
+        cookies.load("TOKEN=rotated")
+        response = SimpleNamespace(
+            cookies=cookies, headers={"X-Updated-Csrf-Token": "new-csrf"}
+        )
+        cfg = SimpleNamespace(adapter_cookies={}, adapter_headers={})
+        update_unifi_session(response, cfg)
+        self.assertEqual(cfg.adapter_cookies, {"TOKEN": "rotated"})
+        self.assertEqual(cfg.adapter_headers, {"X-Csrf-Token": "new-csrf"})
+
     def test_rewrite_root_location(self):
         self.assertEqual(
             _rewrite_location("/login?redirect=%2F", "192.168.10.46", "/api/ingress/unifi_os"),

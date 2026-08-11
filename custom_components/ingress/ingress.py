@@ -13,7 +13,12 @@ from urllib.parse import urlencode, quote
 from yarl import URL
 
 from .const import DOMAIN, LOGGER as _LOGGER, API_BASE, URL_BASE, WorkMode, UIMode, RewriteMode
-from .unifi import adapt_unifi_response
+from .unifi import (
+    adapt_unifi_response,
+    add_unifi_credentials,
+    ensure_unifi_login,
+    update_unifi_session,
+)
 from .unraid import (
     adapt_unraid_response,
     add_unraid_cookies,
@@ -251,6 +256,8 @@ document.querySelector("ha-panel-ingress").setProperties({{panel: {{
 
         if cfg.adapter == "unraid":
             await ensure_unraid_login(self._websession, cfg)
+        elif cfg.adapter == "unifi":
+            await ensure_unifi_login(self._websession, cfg)
 
         # Start proxy
         async with self._websession.ws_connect(
@@ -279,6 +286,8 @@ document.querySelector("ha-panel-ingress").setProperties({{panel: {{
         """Ingress route for request."""
         if cfg.adapter == "unraid":
             await ensure_unraid_login(self._websession, cfg)
+        elif cfg.adapter == "unifi":
+            await ensure_unifi_login(self._websession, cfg)
 
         data = request.content
         if not request.body_exists or (
@@ -298,6 +307,29 @@ document.querySelector("ha-panel-ingress").setProperties({{panel: {{
             ssl=cfg.verify_ssl,
         ) as result:
             headers = _response_header(result)
+            if cfg.adapter == "unifi":
+                update_unifi_session(result, cfg)
+                if cfg.username and cfg.password:
+                    headers.pop(hdrs.SET_COOKIE, None)
+                if result.status == 401 and await ensure_unifi_login(
+                    self._websession, cfg, force=True
+                ):
+                    retry_headers = _init_header(request, cfg, user)
+                    async with self._websession.request(
+                        request.method,
+                        url,
+                        headers=retry_headers,
+                        params=request.query,
+                        allow_redirects=False,
+                        data=data,
+                        timeout=DISABLED_TIMEOUT,
+                        skip_auto_headers={hdrs.CONTENT_TYPE},
+                        ssl=cfg.verify_ssl,
+                    ) as retry_result:
+                        update_unifi_session(retry_result, cfg)
+                        return await self._adapt_request_response(
+                            request, cfg, url, retry_result
+                        )
             if cfg.adapter == "unraid" and is_unraid_login_redirect(
                 result.status, result.headers.get(hdrs.LOCATION)
             ):
@@ -322,6 +354,8 @@ document.querySelector("ha-panel-ingress").setProperties({{panel: {{
     async def _adapt_request_response(self, request, cfg, url, result):
         """Adapt and return one upstream HTTP response."""
         headers = _response_header(result)
+        if cfg.adapter == "unifi" and cfg.username and cfg.password:
+            headers.pop(hdrs.SET_COOKIE, None)
         if ctype := result.headers.get(hdrs.CONTENT_TYPE):
             ctype = ctype.partition(";")[0].strip()
         else:
@@ -444,6 +478,7 @@ def _init_header(
             headers[hdrs.ORIGIN] = upstream_origin
         if hdrs.REFERER in headers:
             headers[hdrs.REFERER] = f"{upstream_origin}/"
+        add_unifi_credentials(headers, cfg)
     elif cfg.adapter == "unraid":
         headers[hdrs.HOST] = cfg.origin.raw_authority
         add_unraid_cookies(headers, cfg)
