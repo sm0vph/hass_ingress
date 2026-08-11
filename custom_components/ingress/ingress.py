@@ -55,6 +55,10 @@ INIT_HEADERS_FILTER = {
     hdrs.SEC_WEBSOCKET_PROTOCOL,
     hdrs.SEC_WEBSOCKET_VERSION,
     hdrs.SEC_WEBSOCKET_KEY,
+    X_ORIGINAL_URL,
+    "X-Original-Uri",
+    "X-Rewrite-Url",
+    "X-Forwarded-Uri",
 }
 RESPONSE_HEADERS_FILTER = {
     hdrs.TRANSFER_ENCODING,
