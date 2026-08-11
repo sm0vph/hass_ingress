@@ -52,6 +52,9 @@
     }
   };
 
+  const nativeOpen = window.open.bind(window);
+  window.open = (url, ...rest) => nativeOpen(url == null ? url : rewrite(String(url)), ...rest);
+
   const rewriteNode = (node) => {
     if (!(node instanceof Element)) return;
     for (const attribute of ["src", "href", "action"]) {

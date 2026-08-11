@@ -205,8 +205,9 @@ ingress:
 ```
 
 All Home Assistant administrators who can open this panel share the configured
-Unraid session. Response rewrite rules may still be needed for Unraid plugins
-that use root-relative URLs.
+Unraid session. The adapter handles Unraid's root-relative HTML, CSS, JavaScript,
+WebSocket, navigation, new-window, redirect, and cookie URLs; no response rewrite
+rules are required in the panel configuration.
 
 ## Multiple Tabs
 

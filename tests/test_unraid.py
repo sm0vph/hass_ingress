@@ -1,6 +1,7 @@
 import importlib.util
 from pathlib import Path
 from types import SimpleNamespace
+import asyncio
 import unittest
 
 
@@ -27,6 +28,47 @@ class UnraidAdapterTest(unittest.TestCase):
         self.assertTrue(is_unraid_login_redirect(303, "http://tower/login"))
         self.assertFalse(is_unraid_login_redirect(302, "/Main"))
         self.assertFalse(is_unraid_login_redirect(200, "/login"))
+
+    def test_response_adapter_handles_unraid_root_paths(self):
+        class FakeResponse:
+            url = SimpleNamespace(
+                host="192.168.10.45", origin=lambda: "http://192.168.10.45"
+            )
+
+            async def read(self):
+                return (
+                    b'<html><head><link href="/plugins/theme.css">'
+                    b'<script>window.location.href="/logout";'
+                    b'window.open("/webterminal/ttyd/")</script></head></html>'
+                )
+
+        headers, body = asyncio.run(
+            unraid.adapt_unraid_response(
+                FakeResponse(),
+                {
+                    "Location": ["/Main"],
+                    "Set-Cookie": ["PHPSESSID=x; Path=/; HttpOnly"],
+                    "X-Frame-Options": ["SAMEORIGIN"],
+                    "ETag": ['"cached"'],
+                },
+                "text/html",
+                "/api/ingress/unraid",
+            )
+        )
+        self.assertEqual(headers["Location"], ["/api/ingress/unraid/Main"])
+        self.assertEqual(
+            headers["Set-Cookie"],
+            ["PHPSESSID=x; Path=/api/ingress/unraid/; HttpOnly"],
+        )
+        self.assertNotIn("X-Frame-Options", headers)
+        self.assertNotIn("ETag", headers)
+        self.assertEqual(headers["Cache-Control"], ["no-store"])
+        self.assertIn(b'href="/api/ingress/unraid/plugins/theme.css"', body)
+        self.assertIn(
+            b"window.__HA_INGRESS_LOCATION__.href=\"/api/ingress/unraid/logout\"",
+            body,
+        )
+        self.assertIn(b"unifi-adapter.js", body)
 
 
 if __name__ == "__main__":

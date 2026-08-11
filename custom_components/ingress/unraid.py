@@ -1,10 +1,121 @@
-"""Server-side authentication helpers for the Unraid web interface."""
+"""Authentication and response adaptation for the Unraid web interface."""
 
+import re
 from typing import TYPE_CHECKING
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urlsplit
 
 if TYPE_CHECKING:
+    from aiohttp import ClientResponse
     from .config import IngressCfg
+
+
+LOCATION = "Location"
+SET_COOKIE = "Set-Cookie"
+X_FRAME_OPTIONS = "X-Frame-Options"
+ADAPTED_CACHE_HEADERS = ("ETag", "Last-Modified", "Expires")
+
+_HTML_URL_ATTRIBUTE = re.compile(
+    rb"(?P<prefix>\b(?:src|href|action)\s*=\s*[\"'])/(?!(?:/|api/ingress/))",
+    re.IGNORECASE,
+)
+_HTML_JSON_URL = re.compile(rb'(?P<prefix>["\']url["\']\s*:\s*["\'])/(?!(?:/|api/ingress/))')
+_CSS_ROOT_URL = re.compile(rb"(?P<prefix>url\(\s*[\"']?)/(?!(?:/|api/ingress/))", re.IGNORECASE)
+_HEAD_START = re.compile(rb"<head(?:\s[^>]*)?>", re.IGNORECASE)
+_JS_NAVIGATION = (
+    (re.compile(rb"\bwindow\.location\b"), rb"window.__HA_INGRESS_LOCATION__"),
+    (
+        re.compile(
+            rb"(?<![.\w])location\."
+            rb"(assign|replace|reload|href|pathname|search|hash|origin|host|hostname|port|protocol)\b"
+        ),
+        rb"window.__HA_INGRESS_LOCATION__.\1",
+    ),
+)
+
+
+async def adapt_unraid_response(
+    response: "ClientResponse",
+    headers: dict[str, list[str]],
+    content_type: str,
+    ingress_path: str,
+) -> tuple[dict[str, list[str]], bytes | None]:
+    """Rewrite Unraid resources so they remain below the ingress path."""
+    headers.pop(X_FRAME_OPTIONS, None)
+    if locations := headers.get(LOCATION):
+        headers[LOCATION] = [
+            _rewrite_location(value, response.url.host, ingress_path) for value in locations
+        ]
+    if cookies := headers.get(SET_COOKIE):
+        headers[SET_COOKIE] = [_rewrite_cookie(value, ingress_path) for value in cookies]
+
+    if content_type == "text/html":
+        _disable_adapted_response_cache(headers)
+        body = await response.read()
+        escaped_path = ingress_path.encode()
+        body = _HTML_URL_ATTRIBUTE.sub(rb"\g<prefix>" + escaped_path + b"/", body)
+        body = _HTML_JSON_URL.sub(rb"\g<prefix>" + escaped_path + b"/", body)
+        for pattern, replacement in _JS_NAVIGATION:
+            body = pattern.sub(replacement, body)
+        bootstrap = (
+            b'<script src="/files/ingress/unifi-adapter.js" data-ingress-path="'
+            + escaped_path
+            + b'" data-upstream-origin="'
+            + str(response.url.origin()).encode()
+            + b'"></script>'
+        )
+        body, count = _HEAD_START.subn(lambda match: match.group(0) + bootstrap, body, count=1)
+        return headers, body if count else bootstrap + body
+
+    if content_type == "text/css":
+        _disable_adapted_response_cache(headers)
+        body = _CSS_ROOT_URL.sub(
+            rb"\g<prefix>" + ingress_path.encode() + b"/", await response.read()
+        )
+        return headers, body
+
+    if content_type in ("application/javascript", "text/javascript"):
+        _disable_adapted_response_cache(headers)
+        body = await response.read()
+        for pattern, replacement in _JS_NAVIGATION:
+            body = pattern.sub(replacement, body)
+        return headers, body
+
+    return headers, None
+
+
+def _disable_adapted_response_cache(headers: dict[str, list[str]]) -> None:
+    for name in ADAPTED_CACHE_HEADERS:
+        headers.pop(name, None)
+    headers["Cache-Control"] = ["no-store"]
+
+
+def _rewrite_location(value: str, upstream_host: str | None, ingress_path: str) -> str:
+    parsed = urlsplit(value)
+    if parsed.scheme and parsed.hostname != upstream_host:
+        return value
+    if parsed.path.startswith(f"{ingress_path}/"):
+        return value
+    suffix = f"?{parsed.query}" if parsed.query else ""
+    if parsed.fragment:
+        suffix += f"#{parsed.fragment}"
+    return f"{ingress_path}/{(parsed.path or '/').lstrip('/')}{suffix}"
+
+
+def _rewrite_cookie(value: str, ingress_path: str) -> str:
+    parts = [part.strip() for part in value.split(";")]
+    rewritten, has_path = [], False
+    for part in parts:
+        key = part.partition("=")[0].strip().lower()
+        if key == "domain":
+            continue
+        if key == "path":
+            rewritten.append(f"Path={ingress_path}/")
+            has_path = True
+        else:
+            rewritten.append(part)
+    if not has_path:
+        rewritten.append(f"Path={ingress_path}/")
+    return "; ".join(rewritten)
 
 
 async def ensure_unraid_login(websession, cfg: "IngressCfg", *, force: bool = False) -> bool:

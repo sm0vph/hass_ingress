@@ -14,7 +14,12 @@ from yarl import URL
 
 from .const import DOMAIN, LOGGER as _LOGGER, API_BASE, URL_BASE, WorkMode, UIMode, RewriteMode
 from .unifi import adapt_unifi_response
-from .unraid import add_unraid_cookies, ensure_unraid_login, is_unraid_login_redirect
+from .unraid import (
+    adapt_unraid_response,
+    add_unraid_cookies,
+    ensure_unraid_login,
+    is_unraid_login_redirect,
+)
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
@@ -325,6 +330,10 @@ document.querySelector("ha-panel-ingress").setProperties({{panel: {{
         adapter_body = None
         if cfg.adapter == "unifi":
             headers, adapter_body = await adapt_unifi_response(
+                result, headers, ctype, f"{API_BASE}/{cfg.name}"
+            )
+        elif cfg.adapter == "unraid":
+            headers, adapter_body = await adapt_unraid_response(
                 result, headers, ctype, f"{API_BASE}/{cfg.name}"
             )
 
