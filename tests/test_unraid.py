@@ -228,6 +228,29 @@ class UnraidAdapterTest(unittest.TestCase):
             b"const url = '/api/ingress/proxmox/?console=' + type + '&vmid=' + vmid;",
         )
 
+    def test_proxmox_relative_console_popup_path_is_rewritten(self):
+        class FakeResponse:
+            url = SimpleNamespace(
+                host="192.168.10.32", origin=lambda: "https://192.168.10.32:8006"
+            )
+
+            async def read(self):
+                return b"let url = '?console=' + type + '&xtermjs=1';"
+
+        _, body = asyncio.run(
+            unraid.adapt_unraid_response(
+                FakeResponse(),
+                {},
+                "application/javascript",
+                "/api/ingress/proxmox",
+                rewrite_root_js=True,
+            )
+        )
+        self.assertEqual(
+            body,
+            b"let url = '/api/ingress/proxmox/?console=' + type + '&xtermjs=1';",
+        )
+
     def test_javascript_content_type_with_json_body_is_not_rewritten(self):
         class FakeResponse:
             url = SimpleNamespace(

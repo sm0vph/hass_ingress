@@ -26,7 +26,7 @@ _CSS_ROOT_URL = re.compile(rb"(?P<prefix>url\(\s*[\"']?)/(?!(?:/|api/ingress/))"
 _PROXMOX_JS_ROOT_URL = re.compile(
     rb"(?P<prefix>[\"'`])/(?P<path>(?:novnc|xtermjs)/)", re.IGNORECASE
 )
-_PROXMOX_CONSOLE_URL = re.compile(rb"(?P<prefix>[\"'`])/\?console=")
+_PROXMOX_CONSOLE_URL = re.compile(rb"(?P<prefix>[\"'`])/?\?console=")
 _HEAD_START = re.compile(rb"<head(?:\s[^>]*)?>", re.IGNORECASE)
 _JS_NAVIGATION = (
     (
@@ -79,7 +79,7 @@ async def adapt_unraid_response(
         for pattern, replacement in _JS_NAVIGATION:
             body = pattern.sub(replacement, body)
         bootstrap = (
-            b'<script src="/files/ingress/unifi-adapter.js?v=12" data-ingress-path="'
+            b'<script src="/files/ingress/unifi-adapter.js?v=13" data-ingress-path="'
             + escaped_path
             + b'" data-upstream-origin="'
             + str(response.url.origin()).encode()
