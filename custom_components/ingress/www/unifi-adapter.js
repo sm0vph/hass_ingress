@@ -17,6 +17,12 @@
     try {
       const rootRelative = value.startsWith("/") && !value.startsWith("//");
       const url = new URL(value, nativeLocation.href);
+      const doubledPrefix = `${ingressPath}${ingressPrefix}`;
+      let normalized = false;
+      while (url.pathname.startsWith(doubledPrefix)) {
+        url.pathname = `${ingressPrefix}${url.pathname.slice(doubledPrefix.length)}`;
+        normalized = true;
+      }
       for (const [source, target] of Object.entries(ingressLinks)) {
         const sourceUrl = new URL(source);
         const sourcePath = sourceUrl.pathname.replace(/\/$/, "");
@@ -33,8 +39,11 @@
       }
       const proxyHost = url.host === nativeLocation.host;
       const upstreamHost = url.host === new URL(upstreamOrigin).host;
-      if ((!proxyHost && !upstreamHost) || (proxyHost && url.pathname.startsWith(ingressPrefix))) {
+      if (!proxyHost && !upstreamHost) {
         return value;
+      }
+      if (proxyHost && url.pathname.startsWith(ingressPrefix)) {
+        return normalized ? `${url.pathname}${url.search}${url.hash}` : value;
       }
       const websocket = ["ws:", "wss:"].includes(url.protocol);
       url.protocol = websocket

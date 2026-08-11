@@ -24,7 +24,10 @@ _HTML_JSON_URL = re.compile(rb'(?P<prefix>["\']url["\']\s*:\s*["\'])/(?!(?:/|api
 _CSS_ROOT_URL = re.compile(rb"(?P<prefix>url\(\s*[\"']?)/(?!(?:/|api/ingress/))", re.IGNORECASE)
 _HEAD_START = re.compile(rb"<head(?:\s[^>]*)?>", re.IGNORECASE)
 _JS_NAVIGATION = (
-    (re.compile(rb"\bwindow\.location\b"), rb"window.__HA_INGRESS_LOCATION__"),
+    (
+        re.compile(rb"(?<![$\w])window\.location\b"),
+        rb"window.__HA_INGRESS_LOCATION__",
+    ),
     (
         re.compile(
             rb"(?<![.\w])location\."
@@ -60,7 +63,7 @@ async def adapt_unraid_response(
         for pattern, replacement in _JS_NAVIGATION:
             body = pattern.sub(replacement, body)
         bootstrap = (
-            b'<script src="/files/ingress/unifi-adapter.js?v=6" data-ingress-path="'
+            b'<script src="/files/ingress/unifi-adapter.js?v=7" data-ingress-path="'
             + escaped_path
             + b'" data-upstream-origin="'
             + str(response.url.origin()).encode()

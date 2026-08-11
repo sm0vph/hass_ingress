@@ -89,7 +89,7 @@ class UnifiAdapterTest(unittest.TestCase):
         body = (
             b'window.location.href="/login";window.location.assign("/network");'
             b"a=window.location;a.pathname;location.pathname;location.href='/login';"
-            b"object.location.pathname"
+            b"object.location.pathname;$window.location.hash()"
         )
         for pattern, replacement in _JS_NAVIGATION:
             body = pattern.sub(replacement, body)
@@ -99,7 +99,8 @@ class UnifiAdapterTest(unittest.TestCase):
             b'window.__HA_INGRESS_LOCATION__.assign("/network");'
             b"a=window.__HA_INGRESS_LOCATION__;a.pathname;"
             b"window.__HA_INGRESS_LOCATION__.pathname;"
-            b"window.__HA_INGRESS_LOCATION__.href='/login';object.location.pathname",
+            b"window.__HA_INGRESS_LOCATION__.href='/login';object.location.pathname;"
+            b"$window.location.hash()",
         )
 
     def test_html_response_is_rewritten_and_bootstrap_is_first(self):

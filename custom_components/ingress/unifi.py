@@ -25,7 +25,7 @@ _CSS_ROOT_URL = re.compile(rb"(?P<prefix>url\(\s*[\"']?)/(?!(?:/|api/ingress/))"
 _HEAD_START = re.compile(rb"<head(?:\s[^>]*)?>", re.IGNORECASE)
 _JS_NAVIGATION = (
     (
-        re.compile(rb"\bwindow\.location\b"),
+        re.compile(rb"(?<![$\w])window\.location\b"),
         rb"window.__HA_INGRESS_LOCATION__",
     ),
     (
@@ -117,7 +117,7 @@ async def adapt_unifi_response(
         body = _HTML_URL_ATTRIBUTE.sub(rb"\g<prefix>" + escaped_path + b"/", body)
         body = _HTML_JSON_URL.sub(rb"\g<prefix>" + escaped_path + b"/", body)
         bootstrap = (
-            b'<script src="/files/ingress/unifi-adapter.js?v=6" data-ingress-path="'
+            b'<script src="/files/ingress/unifi-adapter.js?v=7" data-ingress-path="'
             + escaped_path
             + b'" data-upstream-origin="'
             + str(response.url.origin()).encode()
