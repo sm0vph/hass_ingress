@@ -15,6 +15,7 @@ LOCATION = "Location"
 SET_COOKIE = "Set-Cookie"
 X_FRAME_OPTIONS = "X-Frame-Options"
 ADAPTED_CACHE_HEADERS = ("ETag", "Last-Modified", "Expires")
+ADAPTED_ENTITY_HEADERS = ("Content-Length", "Content-Encoding", "Transfer-Encoding")
 
 _HTML_URL_ATTRIBUTE = re.compile(
     rb"(?P<prefix>\b(?:src|href|action)\s*=\s*[\"'])/(?!(?:/|api/ingress/))",
@@ -94,6 +95,11 @@ async def adapt_unraid_response(
 
 
 def _disable_adapted_response_cache(headers: dict[str, list[str]]) -> None:
+    # aiohttp decodes response bodies before ``read()`` and the adapters can
+    # change their length.  Never forward the upstream entity framing for a
+    # body that Home Assistant will emit again.
+    for name in ADAPTED_ENTITY_HEADERS:
+        headers.pop(name, None)
     for name in ADAPTED_CACHE_HEADERS:
         headers.pop(name, None)
     headers["Cache-Control"] = ["no-store"]

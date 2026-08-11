@@ -60,6 +60,8 @@ class UnraidAdapterTest(unittest.TestCase):
                     "Set-Cookie": ["PHPSESSID=x; Path=/; HttpOnly"],
                     "X-Frame-Options": ["SAMEORIGIN"],
                     "ETag": ['"cached"'],
+                    "Content-Length": ["42"],
+                    "Content-Encoding": ["gzip"],
                 },
                 "text/html",
                 "/api/ingress/unraid",
@@ -72,6 +74,8 @@ class UnraidAdapterTest(unittest.TestCase):
         )
         self.assertNotIn("X-Frame-Options", headers)
         self.assertNotIn("ETag", headers)
+        self.assertNotIn("Content-Length", headers)
+        self.assertNotIn("Content-Encoding", headers)
         self.assertEqual(headers["Cache-Control"], ["no-store"])
         self.assertIn(b'href="/api/ingress/unraid/plugins/theme.css"', body)
         self.assertIn(
