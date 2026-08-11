@@ -11,8 +11,11 @@
     if (typeof value !== "string") return value;
     try {
       const url = new URL(value, window.location.href);
+      const knownHost = [window.location.host, new URL(upstreamOrigin).host].includes(
+        url.host,
+      );
       if (
-        ![window.location.origin, upstreamOrigin].includes(url.origin)
+        !knownHost
         || url.pathname.startsWith(ingressPrefix)
       ) {
         return value;
@@ -73,8 +76,34 @@
   }
 
   window.__HA_INGRESS_LOCATION__ = {
+    get pathname() {
+      const path = window.location.pathname;
+      if (path === ingressPath) return "/";
+      return path.startsWith(ingressPrefix) ? path.slice(ingressPath.length) : path;
+    },
+    get search() {
+      return window.location.search;
+    },
+    get hash() {
+      return window.location.hash;
+    },
+    get origin() {
+      return upstreamOrigin;
+    },
+    get host() {
+      return new URL(upstreamOrigin).host;
+    },
+    get hostname() {
+      return new URL(upstreamOrigin).hostname;
+    },
+    get port() {
+      return new URL(upstreamOrigin).port;
+    },
+    get protocol() {
+      return new URL(upstreamOrigin).protocol;
+    },
     get href() {
-      return window.location.href;
+      return `${upstreamOrigin}${this.pathname}${this.search}${this.hash}`;
     },
     set href(value) {
       window.location.href = rewrite(String(value));
@@ -84,6 +113,9 @@
     },
     replace(value) {
       window.location.replace(rewrite(String(value)));
+    },
+    reload() {
+      window.location.reload();
     },
   };
   window.__HA_INGRESS_PATH__ = ingressPath;
