@@ -14,6 +14,9 @@
   const ingressPrefix = `${ingressPath}/`;
   const rewrite = (value) => {
     if (typeof value !== "string") return value;
+    // Query-only navigation resolves against <base href="/"> in Proxmox,
+    // which would escape to the Home Assistant root. Keep it below ingress.
+    if (value.startsWith("?")) return `${ingressPrefix}${value}`;
     // Relative URLs already resolve below the current ingress path. They can
     // also be Angular expressions (for example, 'syncthing/view.html'), so
     // interpreting them as URLs corrupts templates and dependency names.
@@ -190,6 +193,19 @@
       }
     }).observe(mutationRoot, { childList: true, subtree: true });
   }
+
+  // Catch native target=_blank navigation even when a framework bypasses the
+  // patched href setter while constructing its element.
+  document.addEventListener(
+    "click",
+    (event) => {
+      const target = event.target instanceof Element ? event.target : null;
+      const anchor = target?.closest("a[href]");
+      const href = anchor?.getAttribute("href");
+      if (href?.startsWith("?")) anchor.setAttribute("href", rewrite(href));
+    },
+    true,
+  );
 
   for (const method of ["pushState", "replaceState"]) {
     const nativeMethod = history[method];
