@@ -27,7 +27,10 @@ _JS_NAVIGATION = (
         rb"window.__HA_INGRESS_LOCATION__",
     ),
     (
-        re.compile(rb"(?<![.\w])location\.(pathname|search|hash)\b"),
+        re.compile(
+            rb"(?<![.\w])location\."
+            rb"(assign|replace|reload|href|pathname|search|hash|origin|host|hostname|port|protocol)\b"
+        ),
         rb"window.__HA_INGRESS_LOCATION__.\1",
     ),
 )

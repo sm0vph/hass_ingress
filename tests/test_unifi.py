@@ -64,7 +64,8 @@ class UnifiAdapterTest(unittest.TestCase):
     def test_javascript_navigation_rewrite_is_narrow(self):
         body = (
             b'window.location.href="/login";window.location.assign("/network");'
-            b"a=window.location;a.pathname;location.pathname;object.location.pathname"
+            b"a=window.location;a.pathname;location.pathname;location.href='/login';"
+            b"object.location.pathname"
         )
         for pattern, replacement in _JS_NAVIGATION:
             body = pattern.sub(replacement, body)
@@ -73,7 +74,8 @@ class UnifiAdapterTest(unittest.TestCase):
             b'window.__HA_INGRESS_LOCATION__.href="/login";'
             b'window.__HA_INGRESS_LOCATION__.assign("/network");'
             b"a=window.__HA_INGRESS_LOCATION__;a.pathname;"
-            b"window.__HA_INGRESS_LOCATION__.pathname;object.location.pathname",
+            b"window.__HA_INGRESS_LOCATION__.pathname;"
+            b"window.__HA_INGRESS_LOCATION__.href='/login';object.location.pathname",
         )
 
     def test_html_response_is_rewritten_and_bootstrap_is_first(self):
