@@ -36,8 +36,7 @@ jobs:
 
           # Extract and compare versions using Python for robust semver handling
           python3 -c "
-          import json, sys
-          from packaging import version
+          import json
 
           file_path = '$FILE'
           input_ver_str = '$INPUT_VERSION'
@@ -50,7 +49,10 @@ jobs:
           print(f'Current version in manifest: {current_ver_str}')
           print(f'Input version: {input_ver_str}')
 
-          if version.parse(current_ver_str) >= version.parse(input_ver_str):
+          def version_tuple(value):
+              return tuple(int(part) for part in value.split('.'))
+
+          if version_tuple(current_ver_str) >= version_tuple(input_ver_str):
               print('SKIPPED: Current version is greater than or equal to input version.')
               with open('$GITHUB_ENV', 'a') as env_file:
                   env_file.write('SKIP_RELEASE=true\n')
