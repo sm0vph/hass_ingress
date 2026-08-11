@@ -5,6 +5,10 @@
   const nativeLocation = window.location;
   const ingressPath = currentScript?.dataset.ingressPath?.replace(/\/$/, "");
   const upstreamOrigin = currentScript?.dataset.upstreamOrigin;
+  let ingressLinks = {};
+  try {
+    ingressLinks = JSON.parse(atob(currentScript?.dataset.ingressLinks || "e30="));
+  } catch (_error) {}
   if (!ingressPath) return;
 
   const ingressPrefix = `${ingressPath}/`;
@@ -13,6 +17,17 @@
     try {
       const rootRelative = value.startsWith("/") && !value.startsWith("//");
       const url = new URL(value, nativeLocation.href);
+      for (const [source, target] of Object.entries(ingressLinks)) {
+        const sourceUrl = new URL(source);
+        const sourcePath = sourceUrl.pathname.replace(/\/$/, "");
+        if (
+          url.origin === sourceUrl.origin &&
+          (url.pathname === sourcePath || url.pathname.startsWith(`${sourcePath}/`))
+        ) {
+          const remainder = url.pathname.slice(sourcePath.length).replace(/^\//, "");
+          return `${target}${remainder}${url.search}${url.hash}`;
+        }
+      }
       if (url.host === nativeLocation.host && url.pathname.startsWith("/files/ingress/")) {
         return value;
       }

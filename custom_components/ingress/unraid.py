@@ -1,5 +1,7 @@
 """Authentication and response adaptation for the Unraid web interface."""
 
+import base64
+import json
 import re
 from typing import TYPE_CHECKING
 from urllib.parse import urlparse, urlsplit
@@ -38,6 +40,7 @@ async def adapt_unraid_response(
     headers: dict[str, list[str]],
     content_type: str,
     ingress_path: str,
+    sub_apps: dict[str, str] | None = None,
 ) -> tuple[dict[str, list[str]], bytes | None]:
     """Rewrite Unraid resources so they remain below the ingress path."""
     headers.pop(X_FRAME_OPTIONS, None)
@@ -57,10 +60,12 @@ async def adapt_unraid_response(
         for pattern, replacement in _JS_NAVIGATION:
             body = pattern.sub(replacement, body)
         bootstrap = (
-            b'<script src="/files/ingress/unifi-adapter.js?v=5" data-ingress-path="'
+            b'<script src="/files/ingress/unifi-adapter.js?v=6" data-ingress-path="'
             + escaped_path
             + b'" data-upstream-origin="'
             + str(response.url.origin()).encode()
+            + b'" data-ingress-links="'
+            + base64.b64encode(json.dumps(sub_apps or {}, separators=(",", ":")).encode())
             + b'"></script>'
         )
         body, _ = _HEAD_START.subn(lambda match: match.group(0) + bootstrap, body, count=1)

@@ -2,7 +2,10 @@ import importlib.util
 from pathlib import Path
 from types import SimpleNamespace
 import asyncio
+import base64
 import unittest
+import json
+import re
 
 
 ROOT = Path(__file__).parents[1]
@@ -69,6 +72,26 @@ class UnraidAdapterTest(unittest.TestCase):
             body,
         )
         self.assertIn(b"unifi-adapter.js", body)
+
+    def test_subapp_allowlist_is_embedded_in_document(self):
+        class FakeResponse:
+            url = SimpleNamespace(
+                host="192.168.10.45", origin=lambda: "http://192.168.10.45"
+            )
+
+            async def read(self):
+                return b"<html><head></head></html>"
+
+        links = {
+            "http://192.168.10.45:8384/": "/api/ingress/unraid_syncthing/"
+        }
+        _, body = asyncio.run(
+            unraid.adapt_unraid_response(
+                FakeResponse(), {}, "text/html", "/api/ingress/unraid", links
+            )
+        )
+        encoded = re.search(rb'data-ingress-links="([^"]+)"', body).group(1)
+        self.assertEqual(json.loads(base64.b64decode(encoded)), links)
 
     def test_html_fragment_does_not_get_bootstrap_prefix(self):
         class FakeResponse:

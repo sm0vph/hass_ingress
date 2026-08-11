@@ -366,9 +366,13 @@ document.querySelector("ha-panel-ingress").setProperties({{panel: {{
             headers, adapter_body = await adapt_unifi_response(
                 result, headers, ctype, f"{API_BASE}/{cfg.name}"
             )
-        elif cfg.adapter == "unraid":
+        elif cfg.adapter in ("unraid", "generic"):
+            sub_apps = {
+                f"{sub.origin}{sub.sub_path}/": f"{API_BASE}/{sub.name}/"
+                for sub in cfg.sub_apps
+            }
             headers, adapter_body = await adapt_unraid_response(
-                result, headers, ctype, f"{API_BASE}/{cfg.name}"
+                result, headers, ctype, f"{API_BASE}/{cfg.name}", sub_apps
             )
 
         rewrite_body = None
@@ -479,8 +483,13 @@ def _init_header(
         if hdrs.REFERER in headers:
             headers[hdrs.REFERER] = f"{upstream_origin}/"
         add_unifi_credentials(headers, cfg)
-    elif cfg.adapter == "unraid":
+    elif cfg.adapter in ("unraid", "generic"):
         headers[hdrs.HOST] = cfg.origin.raw_authority
+        upstream_origin = f"{cfg.origin.scheme}://{cfg.origin.raw_authority}"
+        if hdrs.ORIGIN in headers:
+            headers[hdrs.ORIGIN] = upstream_origin
+        if hdrs.REFERER in headers:
+            headers[hdrs.REFERER] = f"{upstream_origin}/"
         add_unraid_cookies(headers, cfg)
 
     # Ingress information

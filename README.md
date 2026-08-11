@@ -216,6 +216,33 @@ Unraid session. The adapter handles Unraid's root-relative HTML, CSS, JavaScript
 WebSocket, navigation, new-window, redirect, and cookie URLs; no response rewrite
 rules are required in the panel configuration.
 
+Docker WebUIs can be registered as hidden `subapp` children. The Unraid adapter
+uses their configured origins as an allowlist and automatically rewrites matching
+Docker WebUI links to the child's ingress route:
+
+```yaml
+ingress:
+  unraid:
+    title: Unraid
+    url: http://192.168.10.45
+    adapter: unraid
+
+  unraid_syncthing:
+    parent: unraid
+    work_mode: subapp
+    adapter: generic
+    title: Syncthing
+    url: http://192.168.10.45:8384
+```
+
+The child does not appear in the Home Assistant sidebar. Opening Syncthing from
+Unraid instead uses `/api/ingress/unraid_syncthing/`. Add one `subapp` entry for
+each Docker WebUI that should be remotely accessible. Arbitrary unconfigured
+hosts and ports are never proxied.
+
+The `generic` adapter handles root-relative HTML, CSS, JavaScript, WebSocket,
+redirect, and cookie URLs for the child without applying Unraid authentication.
+
 ## Multiple Tabs
 
 With the following configuration, you can display web pages in multiple tabs without reloading the iframe when switching tabs.

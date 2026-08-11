@@ -102,7 +102,7 @@ CONFIG_SCHEMA = vol.Schema(
                     vol.Optional(CONF_STATIC_TOKEN): cv.string,
                     vol.Optional(CONF_EXPIRE_TIME): cv.positive_int,
                     vol.Optional(CONF_VERIFY_SSL, default=True): cv.boolean,
-                    vol.Optional(CONF_ADAPTER): vol.In(("unifi", "unraid")),
+                    vol.Optional(CONF_ADAPTER): vol.In(("unifi", "unraid", "generic")),
                     vol.Optional(CONF_USERNAME): cv.string,
                     vol.Optional(CONF_PASSWORD): cv.string,
                 }
