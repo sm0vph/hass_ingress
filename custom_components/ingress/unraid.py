@@ -63,8 +63,8 @@ async def adapt_unraid_response(
             + str(response.url.origin()).encode()
             + b'"></script>'
         )
-        body, count = _HEAD_START.subn(lambda match: match.group(0) + bootstrap, body, count=1)
-        return headers, body if count else bootstrap + body
+        body, _ = _HEAD_START.subn(lambda match: match.group(0) + bootstrap, body, count=1)
+        return headers, body
 
     if content_type == "text/css":
         _disable_adapted_response_cache(headers)

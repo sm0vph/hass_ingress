@@ -12,6 +12,9 @@
     if (typeof value !== "string") return value;
     try {
       const url = new URL(value, nativeLocation.href);
+      if (url.host === nativeLocation.host && url.pathname.startsWith("/files/ingress/")) {
+        return value;
+      }
       const proxyHost = url.host === nativeLocation.host;
       const upstreamHost = url.host === new URL(upstreamOrigin).host;
       if ((!proxyHost && !upstreamHost) || (proxyHost && url.pathname.startsWith(ingressPrefix))) {

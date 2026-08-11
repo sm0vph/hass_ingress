@@ -70,6 +70,22 @@ class UnraidAdapterTest(unittest.TestCase):
         )
         self.assertIn(b"unifi-adapter.js", body)
 
+    def test_html_fragment_does_not_get_bootstrap_prefix(self):
+        class FakeResponse:
+            url = SimpleNamespace(
+                host="192.168.10.45", origin=lambda: "http://192.168.10.45"
+            )
+
+            async def read(self):
+                return b'{"status":"ok"}'
+
+        _, body = asyncio.run(
+            unraid.adapt_unraid_response(
+                FakeResponse(), {}, "text/html", "/api/ingress/unraid"
+            )
+        )
+        self.assertEqual(body, b'{"status":"ok"}')
+
 
 if __name__ == "__main__":
     unittest.main()
