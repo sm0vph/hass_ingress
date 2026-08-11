@@ -75,7 +75,7 @@ async def adapt_unraid_response(
         for pattern, replacement in _JS_NAVIGATION:
             body = pattern.sub(replacement, body)
         bootstrap = (
-            b'<script src="/files/ingress/unifi-adapter.js?v=8" data-ingress-path="'
+            b'<script src="/files/ingress/unifi-adapter.js?v=9" data-ingress-path="'
             + escaped_path
             + b'" data-upstream-origin="'
             + str(response.url.origin()).encode()

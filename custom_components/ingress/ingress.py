@@ -216,6 +216,12 @@ document.querySelector("ha-panel-ingress").setProperties({{panel: {{
                 raise web.HTTPFound(f"/{cfg.entry}?{path}")
             raise web.HTTPNotFound
 
+        # Adapted applications can occasionally retain a previously injected
+        # ingress prefix in cached JavaScript. The router has already consumed
+        # the first prefix; strip any repetitions before forwarding upstream.
+        repeated_prefix = f"{API_BASE}/{cfg.name}/"
+        while path.startswith(repeated_prefix):
+            path = path[len(repeated_prefix) :]
         url = _create_url(cfg, path)
         try:
             # Websocket
