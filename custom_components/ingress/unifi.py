@@ -22,11 +22,8 @@ _CSS_ROOT_URL = re.compile(rb"(?P<prefix>url\(\s*[\"']?)/(?!(?:/|api/ingress/))"
 _HEAD_START = re.compile(rb"<head(?:\s[^>]*)?>", re.IGNORECASE)
 _JS_NAVIGATION = (
     (
-        re.compile(
-            rb"\bwindow\.location\."
-            rb"(assign|replace|reload|href|pathname|search|hash|origin|host|hostname|port|protocol)\b"
-        ),
-        rb"window.__HA_INGRESS_LOCATION__.\1",
+        re.compile(rb"\bwindow\.location\b"),
+        rb"window.__HA_INGRESS_LOCATION__",
     ),
     (
         re.compile(rb"(?<![.\w])location\.(pathname|search|hash)\b"),

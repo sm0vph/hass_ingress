@@ -2,6 +2,7 @@
   "use strict";
 
   const currentScript = document.currentScript;
+  const nativeLocation = window.location;
   const ingressPath = currentScript?.dataset.ingressPath?.replace(/\/$/, "");
   const upstreamOrigin = currentScript?.dataset.upstreamOrigin;
   if (!ingressPath) return;
@@ -10,19 +11,19 @@
   const rewrite = (value) => {
     if (typeof value !== "string") return value;
     try {
-      const url = new URL(value, window.location.href);
-      const proxyHost = url.host === window.location.host;
+      const url = new URL(value, nativeLocation.href);
+      const proxyHost = url.host === nativeLocation.host;
       const upstreamHost = url.host === new URL(upstreamOrigin).host;
       if ((!proxyHost && !upstreamHost) || (proxyHost && url.pathname.startsWith(ingressPrefix))) {
         return value;
       }
       const websocket = ["ws:", "wss:"].includes(url.protocol);
       url.protocol = websocket
-        ? window.location.protocol === "https:"
+        ? nativeLocation.protocol === "https:"
           ? "wss:"
           : "ws:"
-        : window.location.protocol;
-      url.host = window.location.host;
+        : nativeLocation.protocol;
+      url.host = nativeLocation.host;
       url.pathname = `${ingressPath}${url.pathname}`;
       return url.href;
     } catch (_error) {
@@ -80,15 +81,15 @@
 
   window.__HA_INGRESS_LOCATION__ = {
     get pathname() {
-      const path = window.location.pathname;
+      const path = nativeLocation.pathname;
       if (path === ingressPath) return "/";
       return path.startsWith(ingressPrefix) ? path.slice(ingressPath.length) : path;
     },
     get search() {
-      return window.location.search;
+      return nativeLocation.search;
     },
     get hash() {
-      return window.location.hash;
+      return nativeLocation.hash;
     },
     get origin() {
       return upstreamOrigin;
@@ -109,16 +110,19 @@
       return `${upstreamOrigin}${this.pathname}${this.search}${this.hash}`;
     },
     set href(value) {
-      window.location.href = rewrite(String(value));
+      nativeLocation.href = rewrite(String(value));
     },
     assign(value) {
-      window.location.assign(rewrite(String(value)));
+      nativeLocation.assign(rewrite(String(value)));
     },
     replace(value) {
-      window.location.replace(rewrite(String(value)));
+      nativeLocation.replace(rewrite(String(value)));
     },
     reload() {
-      window.location.reload();
+      nativeLocation.reload();
+    },
+    toString() {
+      return this.href;
     },
   };
   window.__HA_INGRESS_PATH__ = ingressPath;
