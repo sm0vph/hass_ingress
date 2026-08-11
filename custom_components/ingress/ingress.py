@@ -252,8 +252,13 @@ document.querySelector("ha-panel-ingress").setProperties({{panel: {{
         await ws_server.prepare(request)
 
         # Support GET query
-        if request.query_string:
-            url = url.with_query(request.query_string)
+        if raw_query := request.rel_url.raw_query_string:
+            # Console endpoints such as Proxmox vncwebsocket carry a signed
+            # one-time ticket in the query.  with_query(str) parses and
+            # re-encodes values (notably +, / and % escapes), invalidating the
+            # ticket.  The browser already supplied an encoded query, so append
+            # it verbatim.
+            url = URL(f"{url.with_query(None)}?{raw_query}", encoded=True)
 
         if cfg.adapter == "unraid":
             await ensure_unraid_login(self._websession, cfg)
