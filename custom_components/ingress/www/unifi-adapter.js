@@ -56,7 +56,23 @@
   };
 
   const nativeOpen = window.open.bind(window);
-  window.open = (url, ...rest) => nativeOpen(url == null ? url : rewrite(String(url)), ...rest);
+  window.open = (url, ...rest) => {
+    const opened = nativeOpen(url == null ? url : rewrite(String(url)), ...rest);
+    if (opened === null) return null;
+    return new Proxy(opened, {
+      get(target, property) {
+        const value = Reflect.get(target, property);
+        return typeof value === "function" ? value.bind(target) : value;
+      },
+      set(target, property, value) {
+        if (property === "location") {
+          target.location = rewrite(String(value));
+          return true;
+        }
+        return Reflect.set(target, property, value);
+      },
+    });
+  };
 
   const rewriteNode = (node) => {
     if (!(node instanceof Element)) return;

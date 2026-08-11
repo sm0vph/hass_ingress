@@ -60,7 +60,7 @@ async def adapt_unifi_response(
         body = _HTML_URL_ATTRIBUTE.sub(rb"\g<prefix>" + escaped_path + b"/", body)
         body = _HTML_JSON_URL.sub(rb"\g<prefix>" + escaped_path + b"/", body)
         bootstrap = (
-            b'<script src="/files/ingress/unifi-adapter.js" data-ingress-path="'
+            b'<script src="/files/ingress/unifi-adapter.js?v=3" data-ingress-path="'
             + escaped_path
             + b'" data-upstream-origin="'
             + str(response.url.origin()).encode()
