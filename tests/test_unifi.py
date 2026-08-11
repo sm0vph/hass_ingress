@@ -79,7 +79,11 @@ class UnifiAdapterTest(unittest.TestCase):
         )
 
     def test_html_response_is_rewritten_and_bootstrap_is_first(self):
-        headers = {"X-Frame-Options": ["SAMEORIGIN"]}
+        headers = {
+            "X-Frame-Options": ["SAMEORIGIN"],
+            "ETag": ['"upstream-etag"'],
+            "Cache-Control": ["public, max-age=31536000"],
+        }
         response_headers, body = asyncio.run(
             unifi.adapt_unifi_response(
                 FakeResponse(
@@ -92,6 +96,8 @@ class UnifiAdapterTest(unittest.TestCase):
             )
         )
         self.assertNotIn("X-Frame-Options", response_headers)
+        self.assertNotIn("ETag", response_headers)
+        self.assertEqual(response_headers["Cache-Control"], ["no-store"])
         self.assertIn(b'data-ingress-path="/api/ingress/unifi_os"', body)
         self.assertIn(b'data-upstream-origin="https://192.168.10.46:11443"', body)
         self.assertIn(b'src="/api/ingress/unifi_os/main.js"', body)

@@ -12,6 +12,7 @@ if TYPE_CHECKING:
 LOCATION = "Location"
 SET_COOKIE = "Set-Cookie"
 X_FRAME_OPTIONS = "X-Frame-Options"
+ADAPTED_CACHE_HEADERS = ("ETag", "Last-Modified", "Expires")
 
 
 _HTML_URL_ATTRIBUTE = re.compile(
@@ -53,6 +54,7 @@ async def adapt_unifi_response(
         headers[SET_COOKIE] = [_rewrite_cookie(value, ingress_path) for value in cookies]
 
     if content_type == "text/html":
+        _disable_adapted_response_cache(headers)
         body = await response.read()
         escaped_path = ingress_path.encode()
         body = _HTML_URL_ATTRIBUTE.sub(rb"\g<prefix>" + escaped_path + b"/", body)
@@ -70,17 +72,26 @@ async def adapt_unifi_response(
         return headers, body
 
     if content_type == "text/css":
+        _disable_adapted_response_cache(headers)
         body = await response.read()
         body = _CSS_ROOT_URL.sub(rb"\g<prefix>" + ingress_path.encode() + b"/", body)
         return headers, body
 
     if content_type in ("application/javascript", "text/javascript"):
+        _disable_adapted_response_cache(headers)
         body = await response.read()
         for pattern, replacement in _JS_NAVIGATION:
             body = pattern.sub(replacement, body)
         return headers, body
 
     return headers, None
+
+
+def _disable_adapted_response_cache(headers: dict[str, list[str]]) -> None:
+    """Prevent clients and intermediary proxies from caching rewritten content."""
+    for name in ADAPTED_CACHE_HEADERS:
+        headers.pop(name, None)
+    headers["Cache-Control"] = ["no-store"]
 
 
 def _rewrite_location(value: str, upstream_host: str | None, ingress_path: str) -> str:
