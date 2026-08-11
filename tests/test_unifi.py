@@ -80,7 +80,10 @@ class UnifiAdapterTest(unittest.TestCase):
         headers = {"X-Frame-Options": ["SAMEORIGIN"]}
         response_headers, body = asyncio.run(
             unifi.adapt_unifi_response(
-                FakeResponse(b'<html><head><script src="/main.js"></script></head></html>'),
+                FakeResponse(
+                    b'<html><head><script>window.M={"url":"/logo.png"}</script>'
+                    b'<script src="/main.js"></script></head></html>'
+                ),
                 headers,
                 "text/html",
                 "/api/ingress/unifi_os",
@@ -90,6 +93,7 @@ class UnifiAdapterTest(unittest.TestCase):
         self.assertIn(b'data-ingress-path="/api/ingress/unifi_os"', body)
         self.assertIn(b'data-upstream-origin="https://192.168.10.46:11443"', body)
         self.assertIn(b'src="/api/ingress/unifi_os/main.js"', body)
+        self.assertIn(b'"url":"/api/ingress/unifi_os/logo.png"', body)
         self.assertLess(body.index(b"unifi-adapter.js"), body.index(b"main.js"))
 
 

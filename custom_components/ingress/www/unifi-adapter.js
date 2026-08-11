@@ -23,7 +23,8 @@
           ? "wss:"
           : "ws:"
         : nativeLocation.protocol;
-      url.host = nativeLocation.host;
+      url.hostname = nativeLocation.hostname;
+      url.port = nativeLocation.port;
       url.pathname = `${ingressPath}${url.pathname}`;
       return url.href;
     } catch (_error) {
@@ -59,6 +60,37 @@
       }
     }
   };
+
+  const nativeSetAttribute = Element.prototype.setAttribute;
+  Element.prototype.setAttribute = function (name, value) {
+    const normalizedName = String(name).toLowerCase();
+    if (["src", "href", "action", "poster"].includes(normalizedName)) {
+      value = rewrite(String(value));
+    }
+    return nativeSetAttribute.call(this, name, value);
+  };
+
+  for (const [elementType, property] of [
+    [HTMLImageElement, "src"],
+    [HTMLScriptElement, "src"],
+    [HTMLLinkElement, "href"],
+    [HTMLSourceElement, "src"],
+    [HTMLVideoElement, "poster"],
+    [HTMLAnchorElement, "href"],
+    [HTMLFormElement, "action"],
+  ]) {
+    const descriptor = Object.getOwnPropertyDescriptor(elementType.prototype, property);
+    if (!descriptor?.get || !descriptor?.set) continue;
+    Object.defineProperty(elementType.prototype, property, {
+      configurable: descriptor.configurable,
+      enumerable: descriptor.enumerable,
+      get: descriptor.get,
+      set(value) {
+        descriptor.set.call(this, rewrite(String(value)));
+      },
+    });
+  }
+
   for (const method of ["appendChild", "insertBefore", "replaceChild"]) {
     const nativeMethod = Node.prototype[method];
     Node.prototype[method] = function (node, ...rest) {
