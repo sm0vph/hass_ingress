@@ -57,6 +57,8 @@ async def adapt_unraid_response(
     if content_type == "text/html":
         _disable_adapted_response_cache(headers)
         body = await response.read()
+        if not _HEAD_START.search(body):
+            return headers, body
         escaped_path = ingress_path.encode()
         body = _HTML_URL_ATTRIBUTE.sub(rb"\g<prefix>" + escaped_path + b"/", body)
         body = _HTML_JSON_URL.sub(rb"\g<prefix>" + escaped_path + b"/", body)
@@ -167,6 +169,14 @@ def add_unraid_cookies(headers: dict[str, str], cfg: "IngressCfg") -> None:
     headers["Cookie"] = (
         f"{browser_cookie}; {adapter_cookie}" if browser_cookie else adapter_cookie
     )
+
+
+def add_basic_auth(headers: dict[str, str], cfg: "IngressCfg") -> None:
+    """Add optional server-side HTTP Basic authentication for a generic adapter."""
+    if not cfg.username or not cfg.password:
+        return
+    credentials = base64.b64encode(f"{cfg.username}:{cfg.password}".encode()).decode()
+    headers["Authorization"] = f"Basic {credentials}"
 
 
 def is_unraid_login_redirect(status: int, location: str | None) -> bool:

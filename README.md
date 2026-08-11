@@ -233,6 +233,8 @@ ingress:
     adapter: generic
     title: Syncthing
     url: http://192.168.10.45:8384
+    username: !secret syncthing_username
+    password: !secret syncthing_password
 ```
 
 The child does not appear in the Home Assistant sidebar. Opening Syncthing from
@@ -242,6 +244,9 @@ hosts and ports are never proxied.
 
 The `generic` adapter handles root-relative HTML, CSS, JavaScript, WebSocket,
 redirect, and cookie URLs for the child without applying Unraid authentication.
+When `username` and `password` are set, it sends HTTP Basic authentication from
+the Home Assistant server. This supports applications such as Syncthing without
+exposing credentials to the browser.
 
 ## Multiple Tabs
 

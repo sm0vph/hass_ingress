@@ -16,10 +16,17 @@ assert spec and spec.loader
 unraid = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(unraid)
 add_unraid_cookies = unraid.add_unraid_cookies
+add_basic_auth = unraid.add_basic_auth
 is_unraid_login_redirect = unraid.is_unraid_login_redirect
 
 
 class UnraidAdapterTest(unittest.TestCase):
+    def test_generic_basic_auth_is_added_server_side(self):
+        cfg = SimpleNamespace(username="alice", password="secret")
+        headers = {}
+        add_basic_auth(headers, cfg)
+        self.assertEqual(headers["Authorization"], "Basic YWxpY2U6c2VjcmV0")
+
     def test_private_cookie_replaces_browser_cookie(self):
         cfg = SimpleNamespace(adapter_cookies={"PHPSESSID": "private"})
         headers = {"Cookie": "theme=dark; PHPSESSID=browser"}
@@ -100,14 +107,16 @@ class UnraidAdapterTest(unittest.TestCase):
             )
 
             async def read(self):
-                return b'{"status":"ok"}'
+                return b'{"url":"/Main/Device","script":"window.location.href"}'
 
         _, body = asyncio.run(
             unraid.adapt_unraid_response(
                 FakeResponse(), {}, "text/html", "/api/ingress/unraid"
             )
         )
-        self.assertEqual(body, b'{"status":"ok"}')
+        self.assertEqual(
+            body, b'{"url":"/Main/Device","script":"window.location.href"}'
+        )
 
 
 if __name__ == "__main__":

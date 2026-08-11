@@ -21,6 +21,7 @@ from .unifi import (
 )
 from .unraid import (
     adapt_unraid_response,
+    add_basic_auth,
     add_unraid_cookies,
     ensure_unraid_login,
     is_unraid_login_redirect,
@@ -491,6 +492,8 @@ def _init_header(
         if hdrs.REFERER in headers:
             headers[hdrs.REFERER] = f"{upstream_origin}/"
         add_unraid_cookies(headers, cfg)
+        if cfg.adapter == "generic":
+            add_basic_auth(headers, cfg)
 
     # Ingress information
     headers[X_INGRESS_PATH] = f"{API_BASE}/{cfg.name}"
