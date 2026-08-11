@@ -31,6 +31,15 @@ class UnraidAdapterTest(unittest.TestCase):
             "api2/extjs/nodes/pve2/lxc/101/config",
         )
 
+    def test_embedded_proxmox_ingress_prefix_is_removed(self):
+        self.assertEqual(
+            normalize_ingress_path(
+                "api2/extjs/api/ingress/proxmox/api2/extjs/nodes/pve2/lxc/103/config",
+                "/api/ingress/proxmox",
+            ),
+            "api2/extjs/nodes/pve2/lxc/103/config",
+        )
+
     def test_generic_basic_auth_is_added_server_side(self):
         cfg = SimpleNamespace(username="alice", password="secret")
         headers = {}
@@ -173,7 +182,7 @@ class UnraidAdapterTest(unittest.TestCase):
         self.assertEqual(
             body,
             b'import("/api/ingress/proxmox/novnc/app.js?ver=1.7.0-2"); '
-            b'fetch("/api/ingress/proxmox/api2/json/version")',
+            b'fetch("/api2/json/version")',
         )
 
     def test_proxmox_adapter_does_not_rewrite_regular_expression_source(self):

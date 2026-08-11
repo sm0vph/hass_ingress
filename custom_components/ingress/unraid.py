@@ -24,7 +24,7 @@ _HTML_URL_ATTRIBUTE = re.compile(
 _HTML_JSON_URL = re.compile(rb'(?P<prefix>["\']url["\']\s*:\s*["\'])/(?!(?:/|api/ingress/))')
 _CSS_ROOT_URL = re.compile(rb"(?P<prefix>url\(\s*[\"']?)/(?!(?:/|api/ingress/))", re.IGNORECASE)
 _PROXMOX_JS_ROOT_URL = re.compile(
-    rb"(?P<prefix>[\"'`])/(?P<path>(?:novnc|xtermjs|pve2|api2)/)", re.IGNORECASE
+    rb"(?P<prefix>[\"'`])/(?P<path>(?:novnc|xtermjs)/)", re.IGNORECASE
 )
 _HEAD_START = re.compile(rb"<head(?:\s[^>]*)?>", re.IGNORECASE)
 _JS_NAVIGATION = (
@@ -75,7 +75,7 @@ async def adapt_unraid_response(
         for pattern, replacement in _JS_NAVIGATION:
             body = pattern.sub(replacement, body)
         bootstrap = (
-            b'<script src="/files/ingress/unifi-adapter.js?v=9" data-ingress-path="'
+            b'<script src="/files/ingress/unifi-adapter.js?v=10" data-ingress-path="'
             + escaped_path
             + b'" data-upstream-origin="'
             + str(response.url.origin()).encode()
@@ -130,6 +130,12 @@ def normalize_ingress_path(path: str, ingress_path: str) -> str:
     """Remove an ingress prefix accidentally retained in a forwarded path."""
     path = path.lstrip("/")
     prefix = ingress_path.strip("/") + "/"
+    marker = "/" + prefix
+    while marker in path:
+        # Proxmox can prepend /api2/extjs to an API URL that an older cached
+        # adapter already prefixed. Keep only the path following the embedded
+        # ingress marker.
+        path = path.split(marker, 1)[1].lstrip("/")
     while path.startswith(prefix):
         path = path[len(prefix) :].lstrip("/")
     return path
