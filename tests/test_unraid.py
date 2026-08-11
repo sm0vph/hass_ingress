@@ -166,6 +166,26 @@ class UnraidAdapterTest(unittest.TestCase):
             b'fetch("/api/ingress/proxmox/api2/json/version")',
         )
 
+    def test_proxmox_adapter_does_not_rewrite_regular_expression_source(self):
+        class FakeResponse:
+            url = SimpleNamespace(
+                host="192.168.10.32", origin=lambda: "https://192.168.10.32:8006"
+            )
+
+            async def read(self):
+                return b'const separator="/"; const matcher=/foo\\/bar/g;'
+
+        _, body = asyncio.run(
+            unraid.adapt_unraid_response(
+                FakeResponse(),
+                {},
+                "application/javascript",
+                "/api/ingress/proxmox",
+                rewrite_root_js=True,
+            )
+        )
+        self.assertEqual(body, b'const separator="/"; const matcher=/foo\\/bar/g;')
+
     def test_javascript_content_type_with_json_body_is_not_rewritten(self):
         class FakeResponse:
             url = SimpleNamespace(

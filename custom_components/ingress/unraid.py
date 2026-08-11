@@ -23,7 +23,9 @@ _HTML_URL_ATTRIBUTE = re.compile(
 )
 _HTML_JSON_URL = re.compile(rb'(?P<prefix>["\']url["\']\s*:\s*["\'])/(?!(?:/|api/ingress/))')
 _CSS_ROOT_URL = re.compile(rb"(?P<prefix>url\(\s*[\"']?)/(?!(?:/|api/ingress/))", re.IGNORECASE)
-_JS_ROOT_URL = re.compile(rb"(?P<prefix>[\"'`])/(?!(?:/|api/ingress/))")
+_PROXMOX_JS_ROOT_URL = re.compile(
+    rb"(?P<prefix>[\"'`])/(?P<path>(?:novnc|xtermjs|pve2|api2)/)", re.IGNORECASE
+)
 _HEAD_START = re.compile(rb"<head(?:\s[^>]*)?>", re.IGNORECASE)
 _JS_NAVIGATION = (
     (
@@ -67,7 +69,9 @@ async def adapt_unraid_response(
         body = _HTML_URL_ATTRIBUTE.sub(rb"\g<prefix>" + escaped_path + b"/", body)
         body = _HTML_JSON_URL.sub(rb"\g<prefix>" + escaped_path + b"/", body)
         if rewrite_root_js:
-            body = _JS_ROOT_URL.sub(rb"\g<prefix>" + escaped_path + b"/", body)
+            body = _PROXMOX_JS_ROOT_URL.sub(
+                rb"\g<prefix>" + escaped_path + rb"/\g<path>", body
+            )
         for pattern, replacement in _JS_NAVIGATION:
             body = pattern.sub(replacement, body)
         bootstrap = (
@@ -103,8 +107,8 @@ async def adapt_unraid_response(
         for pattern, replacement in _JS_NAVIGATION:
             body = pattern.sub(replacement, body)
         if rewrite_root_js:
-            body = _JS_ROOT_URL.sub(
-                rb"\g<prefix>" + ingress_path.encode() + b"/", body
+            body = _PROXMOX_JS_ROOT_URL.sub(
+                rb"\g<prefix>" + ingress_path.encode() + rb"/\g<path>", body
             )
         return headers, body
 
