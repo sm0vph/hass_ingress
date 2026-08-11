@@ -1,0 +1,45 @@
+name: Update version on Release
+
+on:
+  release:
+    types: [created]
+
+permissions:
+  contents: write
+
+jobs:
+  update-version:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Update version
+        run: |
+          FILE="custom_components/ingress/manifest.json"
+          RAW_VERSION="${{ github.event.release.tag_name }}"
+          CLEAN_VERSION="${RAW_VERSION#v}"
+          echo "Updating $FILE version to: $CLEAN_VERSION"
+          sed -i -E "s/(\"version\"[[:space:]]*:[[:space:]]*\")[^\"]+(\")/\1$CLEAN_VERSION\2/" "$FILE"
+          if git diff --quiet "$FILE"; then
+            echo "Version is already up to date. Setting skip flag."
+            echo "SKIP_PUSH=true" >> $GITHUB_ENV
+            exit 0
+          fi
+          git add "$FILE"
+          git config --global user.email "$(git log -n1 --pretty=format:'%ae')"
+          git config --global user.name "$(git log -n1 --pretty=format:'%an')"
+          git commit -m "chore: bump manifest version to $CLEAN_VERSION"
+          echo "Force moving tag $RAW_VERSION to the latest commit..."
+          git tag -f "$RAW_VERSION"
+
+      - name: Push changes
+        if: env.SKIP_PUSH != 'true'
+        uses: ad-m/github-push-action@master
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          branch: ${{ github.event.repository.default_branch }}
+          tags: true
+          force: true
