@@ -13,6 +13,7 @@ from urllib.parse import urlencode, quote
 from yarl import URL
 
 from .const import DOMAIN, LOGGER as _LOGGER, API_BASE, URL_BASE, WorkMode, UIMode, RewriteMode
+from .unifi import adapt_unifi_response
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
@@ -249,6 +250,7 @@ document.querySelector("ha-panel-ingress").setProperties({{panel: {{
             protocols=req_protocols,
             autoclose=False,
             autoping=False,
+            ssl=cfg.verify_ssl,
         ) as ws_client:
             # Proxy requests
             ws_client = cast(web.WebSocketResponse, ws_client)
@@ -281,12 +283,19 @@ document.querySelector("ha-panel-ingress").setProperties({{panel: {{
             data=data,
             timeout=DISABLED_TIMEOUT,
             skip_auto_headers={hdrs.CONTENT_TYPE},
+            ssl=cfg.verify_ssl,
         ) as result:
             headers = _response_header(result)
             if ctype := result.headers.get(hdrs.CONTENT_TYPE):
                 ctype = ctype.partition(";")[0].strip()
             else:
                 ctype = "application/octet-stream"
+
+            adapter_body = None
+            if cfg.adapter == "unifi":
+                headers, adapter_body = await adapt_unifi_response(
+                    result, headers, ctype, f"{API_BASE}/{cfg.name}"
+                )
 
             rewrite_body = None
             if cfg.rewrites:
@@ -307,9 +316,13 @@ document.querySelector("ha-panel-ingress").setProperties({{panel: {{
 
             headers = CIMultiDict((k, v) for k, vs in headers.items() for v in vs if v)
             # Simple request
-            if rewrite_body or must_be_empty_body(request.method, result.status):
+            if (
+                adapter_body is not None
+                or rewrite_body
+                or must_be_empty_body(request.method, result.status)
+            ):
                 # Return Response
-                body = await result.read()
+                body = adapter_body if adapter_body is not None else await result.read()
                 if rewrite_body:
                     body = rewrite_body(body)
                 return web.Response(
@@ -382,6 +395,15 @@ def _init_header(
                 headers[name] = value
         elif value != HEADER_AUTO_PH:
             headers[name] = value
+
+    if cfg.adapter == "unifi":
+        # UniFi OS uses the origin and host for routing and CSRF/WebSocket checks.
+        upstream_origin = f"{cfg.origin.scheme}://{cfg.origin.raw_authority}"
+        headers[hdrs.HOST] = cfg.origin.raw_authority
+        if hdrs.ORIGIN in headers:
+            headers[hdrs.ORIGIN] = upstream_origin
+        if hdrs.REFERER in headers:
+            headers[hdrs.REFERER] = f"{upstream_origin}/"
 
     # Ingress information
     headers[X_INGRESS_PATH] = f"{API_BASE}/{cfg.name}"

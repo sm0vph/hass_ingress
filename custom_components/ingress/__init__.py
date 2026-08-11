@@ -59,6 +59,8 @@ CONF_REWRITE: "Final" = "rewrite"
 CONF_COOKIE_NAME: "Final" = "cookie_name"
 CONF_EXPIRE_TIME: "Final" = "expire_time"
 CONF_STATIC_TOKEN: "Final" = "static_token"
+CONF_VERIFY_SSL: "Final" = "verify_ssl"
+CONF_ADAPTER: "Final" = "adapter"
 
 CONFIG_SCHEMA = vol.Schema(
     {
@@ -97,6 +99,8 @@ CONFIG_SCHEMA = vol.Schema(
                     vol.Optional(CONF_COOKIE_NAME): cv.string,
                     vol.Optional(CONF_STATIC_TOKEN): cv.string,
                     vol.Optional(CONF_EXPIRE_TIME): cv.positive_int,
+                    vol.Optional(CONF_VERIFY_SSL, default=True): cv.boolean,
+                    vol.Optional(CONF_ADAPTER): vol.In(("unifi",)),
                 }
             )
         ),
@@ -293,6 +297,8 @@ def _parse_config(
                     cookie_name=data.get(CONF_COOKIE_NAME),
                     expire_time=data.get(CONF_EXPIRE_TIME),
                     static_token=data.get(CONF_STATIC_TOKEN),
+                    verify_ssl=data[CONF_VERIFY_SSL],
+                    adapter=data.get(CONF_ADAPTER),
                 )
                 url += sub_path
                 if work_mode in (WorkMode.INGRESS, WorkMode.SUBAPP):

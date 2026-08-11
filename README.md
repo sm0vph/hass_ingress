@@ -164,6 +164,27 @@ _Notice: Not all backend services can be proxied by ingress, it must use relativ
 
 _Another option is to use body rewrite rules, see the OpenWrt example above._
 
+### UniFi OS
+
+UniFi OS uses root-relative API, WebSocket, and dynamically loaded asset URLs. The
+optional UniFi adapter rewrites those URLs at runtime and scopes upstream cookies
+to the ingress panel. It can connect directly to a console that uses its default
+self-signed certificate:
+
+```yaml
+ingress:
+  unifi_os:
+    title: UniFi OS
+    icon: mdi:router-network
+    url: https://192.168.10.46:11443
+    adapter: unifi
+    verify_ssl: false
+```
+
+`verify_ssl` defaults to `true`. Disable it only for a trusted device on a trusted
+network. The connection remains encrypted, but the upstream server identity is
+not verified.
+
 ## Multiple Tabs
 
 With the following configuration, you can display web pages in multiple tabs without reloading the iframe when switching tabs.

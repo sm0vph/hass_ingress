@@ -48,6 +48,8 @@ class IngressCfg:
     _cookie_name_re = None
     expire_time = 3600
     static_token = ""
+    verify_ssl = True
+    adapter = ""
     rewrites: list[RewriteCfg] = []
     sub_apps: list["IngressCfg"] = []
 
