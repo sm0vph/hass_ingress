@@ -135,7 +135,11 @@
     const rewriteElement = (element) => {
       for (const attribute of ["src", "href", "action", "poster"]) {
         if (element.hasAttribute(attribute)) {
-          element.setAttribute(attribute, rewrite(element.getAttribute(attribute)));
+          const currentValue = element.getAttribute(attribute);
+          const rewrittenValue = rewrite(currentValue);
+          if (rewrittenValue !== currentValue) {
+            element.setAttribute(attribute, rewrittenValue);
+          }
         }
       }
     };
@@ -158,6 +162,7 @@
 
   for (const [elementType, property] of [
     [HTMLImageElement, "src"],
+    [HTMLIFrameElement, "src"],
     [HTMLScriptElement, "src"],
     [HTMLLinkElement, "href"],
     [HTMLSourceElement, "src"],
@@ -189,9 +194,15 @@
   if (mutationRoot) {
     new MutationObserver((records) => {
       for (const record of records) {
+        if (record.type === "attributes") rewriteNode(record.target);
         for (const node of record.addedNodes) rewriteNode(node);
       }
-    }).observe(mutationRoot, { childList: true, subtree: true });
+    }).observe(mutationRoot, {
+      attributes: true,
+      attributeFilter: ["src", "href", "action", "poster"],
+      childList: true,
+      subtree: true,
+    });
   }
 
   // Catch native target=_blank navigation even when a framework bypasses the
