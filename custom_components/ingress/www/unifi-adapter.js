@@ -11,15 +11,18 @@
     if (typeof value !== "string") return value;
     try {
       const url = new URL(value, window.location.href);
-      const knownHost = [window.location.host, new URL(upstreamOrigin).host].includes(
-        url.host,
-      );
-      if (
-        !knownHost
-        || url.pathname.startsWith(ingressPrefix)
-      ) {
+      const proxyHost = url.host === window.location.host;
+      const upstreamHost = url.host === new URL(upstreamOrigin).host;
+      if ((!proxyHost && !upstreamHost) || (proxyHost && url.pathname.startsWith(ingressPrefix))) {
         return value;
       }
+      const websocket = ["ws:", "wss:"].includes(url.protocol);
+      url.protocol = websocket
+        ? window.location.protocol === "https:"
+          ? "wss:"
+          : "ws:"
+        : window.location.protocol;
+      url.host = window.location.host;
       url.pathname = `${ingressPath}${url.pathname}`;
       return url.href;
     } catch (_error) {
