@@ -93,8 +93,28 @@
   window.open = (url, ...rest) => {
     const opened = nativeOpen(url == null ? url : rewrite(String(url)), ...rest);
     if (opened === null) return null;
+    let locationProxy;
     return new Proxy(opened, {
       get(target, property) {
+        if (property === "location") {
+          if (!locationProxy) {
+            const popupLocation = target.location;
+            locationProxy = new Proxy(popupLocation, {
+              get(locationTarget, locationProperty) {
+                const value = Reflect.get(locationTarget, locationProperty);
+                return typeof value === "function" ? value.bind(locationTarget) : value;
+              },
+              set(locationTarget, locationProperty, value) {
+                if (locationProperty === "href") {
+                  locationTarget.href = rewrite(String(value));
+                  return true;
+                }
+                return Reflect.set(locationTarget, locationProperty, value);
+              },
+            });
+          }
+          return locationProxy;
+        }
         const value = Reflect.get(target, property);
         return typeof value === "function" ? value.bind(target) : value;
       },
