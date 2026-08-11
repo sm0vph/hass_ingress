@@ -85,12 +85,15 @@
   };
 
   const NativeWebSocket = window.WebSocket;
-  window.WebSocket = class extends NativeWebSocket {
-    constructor(url, protocols) {
-      if (protocols === undefined) super(rewrite(url));
-      else super(rewrite(url), protocols);
-    }
-  };
+  window.WebSocket = new Proxy(NativeWebSocket, {
+    construct(target, args) {
+      const rewrittenArgs = [...args];
+      rewrittenArgs[0] = rewrite(rewrittenArgs[0]);
+      // Return a native WebSocket, not a subclass. noVNC validates only the
+      // immediate prototype and otherwise cannot see native methods like send.
+      return Reflect.construct(target, rewrittenArgs, target);
+    },
+  });
 
   const nativeOpen = window.open.bind(window);
   window.open = (url, ...rest) => {
