@@ -164,6 +164,58 @@ _Notice: Not all backend services can be proxied by ingress, it must use relativ
 
 _Another option is to use body rewrite rules, see the OpenWrt example above._
 
+### UniFi OS
+
+UniFi OS uses root-relative API, WebSocket, and dynamically loaded asset URLs. The
+optional UniFi adapter rewrites those URLs at runtime and scopes upstream cookies
+to the ingress panel. It can connect directly to a console that uses its default
+self-signed certificate:
+
+```yaml
+ingress:
+  unifi_os:
+    title: UniFi OS
+    icon: mdi:router-network
+    url: https://192.168.10.46:11443
+    adapter: unifi
+    verify_ssl: false
+    username: !secret unifi_username
+    password: !secret unifi_password
+```
+
+`verify_ssl` defaults to `true`. Disable it only for a trusted device on a trusted
+network. The connection remains encrypted, but the upstream server identity is
+not verified.
+
+When `username` and `password` are configured, the adapter signs in to UniFi OS
+on the Home Assistant server, retains the private `TOKEN` cookie and CSRF token,
+and renews the session after an unauthorized response. The credentials are not
+sent to the browser.
+
+### Unraid authentication
+
+The Unraid adapter can sign in on the Home Assistant server and retain the
+upstream session without exposing the credentials to the browser. Store the
+credentials in `secrets.yaml`:
+
+```yaml
+ingress:
+  unraid:
+    title: Unraid
+    icon: mdi:nas
+    url: http://192.168.10.45
+    index: Main
+    adapter: unraid
+    require_admin: true
+    username: !secret unraid_username
+    password: !secret unraid_password
+```
+
+All Home Assistant administrators who can open this panel share the configured
+Unraid session. The adapter handles Unraid's root-relative HTML, CSS, JavaScript,
+WebSocket, navigation, new-window, redirect, and cookie URLs; no response rewrite
+rules are required in the panel configuration.
+
 ## Multiple Tabs
 
 With the following configuration, you can display web pages in multiple tabs without reloading the iframe when switching tabs.

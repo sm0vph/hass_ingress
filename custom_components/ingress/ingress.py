@@ -13,6 +13,18 @@ from urllib.parse import urlencode, quote
 from yarl import URL
 
 from .const import DOMAIN, LOGGER as _LOGGER, API_BASE, URL_BASE, WorkMode, UIMode, RewriteMode
+from .unifi import (
+    adapt_unifi_response,
+    add_unifi_credentials,
+    ensure_unifi_login,
+    update_unifi_session,
+)
+from .unraid import (
+    adapt_unraid_response,
+    add_unraid_cookies,
+    ensure_unraid_login,
+    is_unraid_login_redirect,
+)
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
@@ -242,6 +254,11 @@ document.querySelector("ha-panel-ingress").setProperties({{panel: {{
         if request.query_string:
             url = url.with_query(request.query_string)
 
+        if cfg.adapter == "unraid":
+            await ensure_unraid_login(self._websession, cfg)
+        elif cfg.adapter == "unifi":
+            await ensure_unifi_login(self._websession, cfg)
+
         # Start proxy
         async with self._websession.ws_connect(
             url,
@@ -249,6 +266,7 @@ document.querySelector("ha-panel-ingress").setProperties({{panel: {{
             protocols=req_protocols,
             autoclose=False,
             autoping=False,
+            ssl=cfg.verify_ssl,
         ) as ws_client:
             # Proxy requests
             ws_client = cast(web.WebSocketResponse, ws_client)
@@ -266,6 +284,11 @@ document.querySelector("ha-panel-ingress").setProperties({{panel: {{
         self, request: web.Request, cfg: "IngressCfg", user: "UserInfo | None", url: URL
     ) -> web.Response | web.StreamResponse:
         """Ingress route for request."""
+        if cfg.adapter == "unraid":
+            await ensure_unraid_login(self._websession, cfg)
+        elif cfg.adapter == "unifi":
+            await ensure_unifi_login(self._websession, cfg)
+
         data = request.content
         if not request.body_exists or (
             (clen := request.headers.get(hdrs.CONTENT_LENGTH))
@@ -281,52 +304,116 @@ document.querySelector("ha-panel-ingress").setProperties({{panel: {{
             data=data,
             timeout=DISABLED_TIMEOUT,
             skip_auto_headers={hdrs.CONTENT_TYPE},
+            ssl=cfg.verify_ssl,
         ) as result:
             headers = _response_header(result)
-            if ctype := result.headers.get(hdrs.CONTENT_TYPE):
-                ctype = ctype.partition(";")[0].strip()
-            else:
-                ctype = "application/octet-stream"
+            if cfg.adapter == "unifi":
+                update_unifi_session(result, cfg)
+                if cfg.username and cfg.password:
+                    headers.pop(hdrs.SET_COOKIE, None)
+                if result.status == 401 and await ensure_unifi_login(
+                    self._websession, cfg, force=True
+                ):
+                    retry_headers = _init_header(request, cfg, user)
+                    async with self._websession.request(
+                        request.method,
+                        url,
+                        headers=retry_headers,
+                        params=request.query,
+                        allow_redirects=False,
+                        data=data,
+                        timeout=DISABLED_TIMEOUT,
+                        skip_auto_headers={hdrs.CONTENT_TYPE},
+                        ssl=cfg.verify_ssl,
+                    ) as retry_result:
+                        update_unifi_session(retry_result, cfg)
+                        return await self._adapt_request_response(
+                            request, cfg, url, retry_result
+                        )
+            if cfg.adapter == "unraid" and is_unraid_login_redirect(
+                result.status, result.headers.get(hdrs.LOCATION)
+            ):
+                if not await ensure_unraid_login(self._websession, cfg, force=True):
+                    return await self._adapt_request_response(request, cfg, url, result)
+                retry_headers = _init_header(request, cfg, user)
+                async with self._websession.request(
+                    request.method,
+                    url,
+                    headers=retry_headers,
+                    params=request.query,
+                    allow_redirects=False,
+                    data=data,
+                    timeout=DISABLED_TIMEOUT,
+                    skip_auto_headers={hdrs.CONTENT_TYPE},
+                    ssl=cfg.verify_ssl,
+                ) as retry_result:
+                    return await self._adapt_request_response(request, cfg, url, retry_result)
 
-            rewrite_body = None
-            if cfg.rewrites:
-                path = url.path
-                for rule in cfg.rewrites:
-                    if rule.path and not re.match(rule.path, path, re.I):
-                        continue
-                    if rule.mode == RewriteMode.HEADER:
-                        for name, value in headers.items():
-                            if rule.name and not re.match(rule.name, name, re.I):
-                                continue
-                            for i in range(len(value)):
-                                value[i] = re.sub(rule.match, rule.replace, value[i])
-                    elif rule.mode == RewriteMode.BODY:
-                        if rule.name and not re.match(rule.name, ctype, re.I):
+            return await self._adapt_request_response(request, cfg, url, result)
+
+    async def _adapt_request_response(self, request, cfg, url, result):
+        """Adapt and return one upstream HTTP response."""
+        headers = _response_header(result)
+        if cfg.adapter == "unifi" and cfg.username and cfg.password:
+            headers.pop(hdrs.SET_COOKIE, None)
+        if ctype := result.headers.get(hdrs.CONTENT_TYPE):
+            ctype = ctype.partition(";")[0].strip()
+        else:
+            ctype = "application/octet-stream"
+
+        adapter_body = None
+        if cfg.adapter == "unifi":
+            headers, adapter_body = await adapt_unifi_response(
+                result, headers, ctype, f"{API_BASE}/{cfg.name}"
+            )
+        elif cfg.adapter == "unraid":
+            headers, adapter_body = await adapt_unraid_response(
+                result, headers, ctype, f"{API_BASE}/{cfg.name}"
+            )
+
+        rewrite_body = None
+        if cfg.rewrites:
+            path = url.path
+            for rule in cfg.rewrites:
+                if rule.path and not re.match(rule.path, path, re.I):
+                    continue
+                if rule.mode == RewriteMode.HEADER:
+                    for name, value in headers.items():
+                        if rule.name and not re.match(rule.name, name, re.I):
                             continue
-                        rewrite_body = _make_rewrite(rule, rewrite_body)
+                        for i in range(len(value)):
+                            value[i] = re.sub(rule.match, rule.replace, value[i])
+                elif rule.mode == RewriteMode.BODY:
+                    if rule.name and not re.match(rule.name, ctype, re.I):
+                        continue
+                    rewrite_body = _make_rewrite(rule, rewrite_body)
 
-            headers = CIMultiDict((k, v) for k, vs in headers.items() for v in vs if v)
-            # Simple request
-            if rewrite_body or must_be_empty_body(request.method, result.status):
-                # Return Response
-                body = await result.read()
-                if rewrite_body:
-                    body = rewrite_body(body)
-                return web.Response(
-                    headers=headers, status=result.status, content_type=ctype, body=body
-                )
+        headers = CIMultiDict((k, v) for k, vs in headers.items() for v in vs if v)
+        # Simple request
+        if (
+            adapter_body is not None
+            or rewrite_body
+            or must_be_empty_body(request.method, result.status)
+        ):
+            # Return Response
+            body = adapter_body if adapter_body is not None else await result.read()
+            if rewrite_body:
+                body = rewrite_body(body)
+            return web.Response(
+                headers=headers, status=result.status, content_type=ctype, body=body
+            )
 
-            # Stream response
-            response = web.StreamResponse(status=result.status, headers=headers)
-            response.content_type = ctype
+        # Stream response
+        response = web.StreamResponse(status=result.status, headers=headers)
+        response.content_type = ctype
 
-            try:
-                await response.prepare(request)
-                async for data, _ in result.content.iter_chunks():
-                    await response.write(data)
-            except (aiohttp.ClientError, aiohttp.ClientPayloadError, ConnectionResetError) as err:
-                _LOGGER.debug("Stream error with %s / %s: %s", cfg.name, url, err)
-            return response
+        try:
+            await response.prepare(request)
+            async for data, _ in result.content.iter_chunks():
+                await response.write(data)
+        except (aiohttp.ClientError, aiohttp.ClientPayloadError, ConnectionResetError) as err:
+            _LOGGER.debug("Stream error with %s / %s: %s", cfg.name, url, err)
+        return response
 
 
 def _make_rewrite(
@@ -382,6 +469,19 @@ def _init_header(
                 headers[name] = value
         elif value != HEADER_AUTO_PH:
             headers[name] = value
+
+    if cfg.adapter == "unifi":
+        # UniFi OS uses the origin and host for routing and CSRF/WebSocket checks.
+        upstream_origin = f"{cfg.origin.scheme}://{cfg.origin.raw_authority}"
+        headers[hdrs.HOST] = cfg.origin.raw_authority
+        if hdrs.ORIGIN in headers:
+            headers[hdrs.ORIGIN] = upstream_origin
+        if hdrs.REFERER in headers:
+            headers[hdrs.REFERER] = f"{upstream_origin}/"
+        add_unifi_credentials(headers, cfg)
+    elif cfg.adapter == "unraid":
+        headers[hdrs.HOST] = cfg.origin.raw_authority
+        add_unraid_cookies(headers, cfg)
 
     # Ingress information
     headers[X_INGRESS_PATH] = f"{API_BASE}/{cfg.name}"
