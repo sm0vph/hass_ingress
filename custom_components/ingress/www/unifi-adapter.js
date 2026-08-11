@@ -14,6 +14,12 @@
   const ingressPrefix = `${ingressPath}/`;
   const rewrite = (value) => {
     if (typeof value !== "string") return value;
+    // Relative URLs already resolve below the current ingress path. They can
+    // also be Angular expressions (for example, 'syncthing/view.html'), so
+    // interpreting them as URLs corrupts templates and dependency names.
+    if (!value.startsWith("/") && !/^[a-z][a-z\d+.-]*:\/\//i.test(value)) {
+      return value;
+    }
     try {
       const rootRelative = value.startsWith("/") && !value.startsWith("//");
       const url = new URL(value, nativeLocation.href);

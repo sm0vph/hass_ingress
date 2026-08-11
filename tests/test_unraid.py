@@ -122,6 +122,26 @@ class UnraidAdapterTest(unittest.TestCase):
             body, b'{"url":"/Main/Device","script":"window.location.href"}'
         )
 
+    def test_angular_location_service_is_not_rewritten(self):
+        class FakeResponse:
+            url = SimpleNamespace(
+                host="192.168.10.45", origin=lambda: "http://192.168.10.45"
+            )
+
+            async def read(self):
+                return b"$location.hash(); location.hash; $window.location.hash();"
+
+        _, body = asyncio.run(
+            unraid.adapt_unraid_response(
+                FakeResponse(), {}, "application/javascript", "/api/ingress/app"
+            )
+        )
+        self.assertEqual(
+            body,
+            b"$location.hash(); window.__HA_INGRESS_LOCATION__.hash; "
+            b"$window.location.hash();",
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
