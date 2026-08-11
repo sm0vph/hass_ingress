@@ -63,7 +63,6 @@ INIT_HEADERS_FILTER = {
 RESPONSE_HEADERS_FILTER = {
     hdrs.TRANSFER_ENCODING,
     hdrs.CONTENT_LENGTH,
-    hdrs.CONTENT_TYPE,
     hdrs.CONTENT_ENCODING,
 }
 
@@ -424,12 +423,13 @@ document.querySelector("ha-panel-ingress").setProperties({{panel: {{
             if rewrite_body:
                 body = rewrite_body(body)
             return web.Response(
-                headers=headers, status=result.status, content_type=ctype, body=body
+                headers=headers, status=result.status, body=body
             )
 
         # Stream response
         response = web.StreamResponse(status=result.status, headers=headers)
-        response.content_type = ctype
+        if hdrs.CONTENT_TYPE not in headers:
+            response.content_type = ctype
 
         try:
             await response.prepare(request)
