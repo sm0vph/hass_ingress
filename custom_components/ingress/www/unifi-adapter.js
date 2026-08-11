@@ -11,6 +11,7 @@
   const rewrite = (value) => {
     if (typeof value !== "string") return value;
     try {
+      const rootRelative = value.startsWith("/") && !value.startsWith("//");
       const url = new URL(value, nativeLocation.href);
       if (url.host === nativeLocation.host && url.pathname.startsWith("/files/ingress/")) {
         return value;
@@ -29,6 +30,9 @@
       url.hostname = nativeLocation.hostname;
       url.port = nativeLocation.port;
       url.pathname = `${ingressPath}${url.pathname}`;
+      if (rootRelative && !websocket) {
+        return `${url.pathname}${url.search}${url.hash}`;
+      }
       return url.href;
     } catch (_error) {
       return value;
