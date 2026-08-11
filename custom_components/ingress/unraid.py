@@ -23,6 +23,7 @@ _HTML_URL_ATTRIBUTE = re.compile(
 )
 _HTML_JSON_URL = re.compile(rb'(?P<prefix>["\']url["\']\s*:\s*["\'])/(?!(?:/|api/ingress/))')
 _CSS_ROOT_URL = re.compile(rb"(?P<prefix>url\(\s*[\"']?)/(?!(?:/|api/ingress/))", re.IGNORECASE)
+_JS_ROOT_URL = re.compile(rb"(?P<prefix>[\"'`])/(?!(?:/|api/ingress/))")
 _HEAD_START = re.compile(rb"<head(?:\s[^>]*)?>", re.IGNORECASE)
 _JS_NAVIGATION = (
     (
@@ -45,6 +46,8 @@ async def adapt_unraid_response(
     content_type: str,
     ingress_path: str,
     sub_apps: dict[str, str] | None = None,
+    *,
+    rewrite_root_js: bool = False,
 ) -> tuple[dict[str, list[str]], bytes | None]:
     """Rewrite Unraid resources so they remain below the ingress path."""
     headers.pop(X_FRAME_OPTIONS, None)
@@ -63,6 +66,8 @@ async def adapt_unraid_response(
         escaped_path = ingress_path.encode()
         body = _HTML_URL_ATTRIBUTE.sub(rb"\g<prefix>" + escaped_path + b"/", body)
         body = _HTML_JSON_URL.sub(rb"\g<prefix>" + escaped_path + b"/", body)
+        if rewrite_root_js:
+            body = _JS_ROOT_URL.sub(rb"\g<prefix>" + escaped_path + b"/", body)
         for pattern, replacement in _JS_NAVIGATION:
             body = pattern.sub(replacement, body)
         bootstrap = (
@@ -87,8 +92,20 @@ async def adapt_unraid_response(
     if content_type in ("application/javascript", "text/javascript"):
         _disable_adapted_response_cache(headers)
         body = await response.read()
+        try:
+            json.loads(body)
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            pass
+        else:
+            # Some Unraid endpoints label JSON as JavaScript. FolderView parses
+            # these responses directly, so they must remain byte-identical.
+            return headers, body
         for pattern, replacement in _JS_NAVIGATION:
             body = pattern.sub(replacement, body)
+        if rewrite_root_js:
+            body = _JS_ROOT_URL.sub(
+                rb"\g<prefix>" + ingress_path.encode() + b"/", body
+            )
         return headers, body
 
     return headers, None

@@ -372,13 +372,18 @@ document.querySelector("ha-panel-ingress").setProperties({{panel: {{
             headers, adapter_body = await adapt_unifi_response(
                 result, headers, ctype, f"{API_BASE}/{cfg.name}"
             )
-        elif cfg.adapter in ("unraid", "generic"):
+        elif cfg.adapter in ("unraid", "generic", "proxmox"):
             sub_apps = {
                 f"{sub.origin}{sub.sub_path}/": f"{API_BASE}/{sub.name}/"
                 for sub in cfg.sub_apps
             }
             headers, adapter_body = await adapt_unraid_response(
-                result, headers, ctype, f"{API_BASE}/{cfg.name}", sub_apps
+                result,
+                headers,
+                ctype,
+                f"{API_BASE}/{cfg.name}",
+                sub_apps,
+                rewrite_root_js=cfg.adapter == "proxmox",
             )
 
         rewrite_body = None
@@ -489,7 +494,7 @@ def _init_header(
         if hdrs.REFERER in headers:
             headers[hdrs.REFERER] = f"{upstream_origin}/"
         add_unifi_credentials(headers, cfg)
-    elif cfg.adapter in ("unraid", "generic"):
+    elif cfg.adapter in ("unraid", "generic", "proxmox"):
         headers[hdrs.HOST] = cfg.origin.raw_authority
         upstream_origin = f"{cfg.origin.scheme}://{cfg.origin.raw_authority}"
         if hdrs.ORIGIN in headers:

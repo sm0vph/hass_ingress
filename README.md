@@ -248,6 +248,21 @@ When `username` and `password` are set, it sends HTTP Basic authentication from
 the Home Assistant server. This supports applications such as Syncthing without
 exposing credentials to the browser.
 
+Proxmox VE needs additional rewriting for JavaScript module paths used by
+noVNC and xterm.js. Use the dedicated adapter together with SSL verification
+disabled when the node has its default self-signed certificate:
+
+```yaml
+proxmox:
+  title: Proxmox
+  url: https://192.168.10.32:8006
+  adapter: proxmox
+  verify_ssl: false
+```
+
+Interactive login remains in the Proxmox UI. The adapter preserves signed
+console WebSocket tickets and proxies root-relative noVNC resources.
+
 ## Multiple Tabs
 
 With the following configuration, you can display web pages in multiple tabs without reloading the iframe when switching tabs.

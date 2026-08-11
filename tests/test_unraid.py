@@ -142,6 +142,51 @@ class UnraidAdapterTest(unittest.TestCase):
             b"$window.location.hash();",
         )
 
+    def test_proxmox_javascript_module_paths_are_rewritten(self):
+        class FakeResponse:
+            url = SimpleNamespace(
+                host="192.168.10.32", origin=lambda: "https://192.168.10.32:8006"
+            )
+
+            async def read(self):
+                return b'import("/novnc/app.js?ver=1.7.0-2"); fetch("/api2/json/version")'
+
+        _, body = asyncio.run(
+            unraid.adapt_unraid_response(
+                FakeResponse(),
+                {},
+                "application/javascript",
+                "/api/ingress/proxmox",
+                rewrite_root_js=True,
+            )
+        )
+        self.assertEqual(
+            body,
+            b'import("/api/ingress/proxmox/novnc/app.js?ver=1.7.0-2"); '
+            b'fetch("/api/ingress/proxmox/api2/json/version")',
+        )
+
+    def test_javascript_content_type_with_json_body_is_not_rewritten(self):
+        class FakeResponse:
+            url = SimpleNamespace(
+                host="192.168.10.45", origin=lambda: "http://192.168.10.45"
+            )
+
+            async def read(self):
+                return b'{"script":"window.location.href","url":"/Docker"}'
+
+        _, body = asyncio.run(
+            unraid.adapt_unraid_response(
+                FakeResponse(),
+                {},
+                "application/javascript",
+                "/api/ingress/unraid",
+            )
+        )
+        self.assertEqual(
+            body, b'{"script":"window.location.href","url":"/Docker"}'
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
