@@ -128,8 +128,10 @@ def _disable_adapted_response_cache(headers: dict[str, list[str]]) -> None:
     # body that Home Assistant will emit again.
     for name in ADAPTED_ENTITY_HEADERS:
         headers.pop(name, None)
-    for name in ADAPTED_CACHE_HEADERS:
-        headers.pop(name, None)
+    cache_headers = {name.lower() for name in ADAPTED_CACHE_HEADERS}
+    for name in list(headers):
+        if name.lower() in cache_headers:
+            headers.pop(name)
     headers["Cache-Control"] = ["no-store"]
 
 

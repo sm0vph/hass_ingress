@@ -146,8 +146,10 @@ async def adapt_unifi_response(
 
 def _disable_adapted_response_cache(headers: dict[str, list[str]]) -> None:
     """Prevent clients and intermediary proxies from caching rewritten content."""
-    for name in ADAPTED_CACHE_HEADERS:
-        headers.pop(name, None)
+    cache_headers = {name.lower() for name in ADAPTED_CACHE_HEADERS}
+    for name in list(headers):
+        if name.lower() in cache_headers:
+            headers.pop(name)
     headers["Cache-Control"] = ["no-store"]
 
 

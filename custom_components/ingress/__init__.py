@@ -51,10 +51,17 @@ VERSION = ""
 CONNECT_TIMEOUT = 20
 
 
+def _default_tls_mode(panel):
+    """Keep upstream's default without overriding legacy YAML TLS settings."""
+    if const.CONF_TLS_MODE not in panel and const.CONF_VERIFY_SSL not in panel:
+        panel = {**panel, const.CONF_TLS_MODE: TLSMode.SYSTEM}
+    return panel
+
+
 CONFIG_SCHEMA = vol.Schema(
     {
         DOMAIN: cv.schema_with_slug_keys(
-            vol.Schema(
+            vol.All(vol.Schema(
                 {
                     vol.Optional(panel_custom.CONF_REQUIRE_ADMIN, default=False): cv.boolean,
                     vol.Optional(const.CONF_TITLE): cv.string,
@@ -103,7 +110,7 @@ CONFIG_SCHEMA = vol.Schema(
                     vol.Optional(const.CONF_TLS_CERTIFICATE): cv.string,
                     vol.Optional(const.CONF_SHOW_IN_SIDEBAR): cv.boolean,
                 }
-            )
+            ), _default_tls_mode)
         ),
     },
     extra=vol.ALLOW_EXTRA,

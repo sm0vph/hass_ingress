@@ -119,7 +119,7 @@ def _panel_schema(editing=False):
                         vol.Optional(const.CONF_PASSWORD): selector.TextSelector(
                             {"type": "password"}
                         ),
-                        vol.Optional(const.CONF_TLS_MODE): _select(
+                        vol.Optional(const.CONF_TLS_MODE, default=TLSMode.SYSTEM): _select(
                             TLSMode, translation_key="tls_mode"
                         ),
                         vol.Optional(const.CONF_TLS_CERTIFICATE): selector.TextSelector(
