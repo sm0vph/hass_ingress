@@ -6,6 +6,7 @@ import aiohttp
 from aiohttp import web
 from aiohttp.test_utils import TestServer
 import pytest
+from yarl import URL
 
 from custom_components.ingress import CONFIG_SCHEMA, _parse_config, setup_domain
 from custom_components.ingress.config import IngressStore
@@ -39,7 +40,7 @@ def test_explicit_tls_takes_precedence():
 
 
 @pytest.fixture
-async def proxy_factory(hass, aiohttp_client):
+async def proxy_factory(hass, aiohttp_client, socket_enabled):
     sessions = []
     servers = []
 
@@ -155,7 +156,7 @@ async def test_signed_websocket_ticket_is_preserved(proxy_factory):
         return ws
 
     client, _, _ = await proxy_factory(backend, adapter="proxmox")
-    async with client.ws_connect("/api/ingress/app/ws?" + ticket) as ws:
+    async with client.ws_connect(URL("/api/ingress/app/ws?" + ticket, encoded=True)) as ws:
         assert (await ws.receive()).data == ticket
         await ws.send_str("console")
         assert (await ws.receive()).data == "console"

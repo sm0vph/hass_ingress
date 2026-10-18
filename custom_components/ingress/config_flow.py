@@ -119,7 +119,7 @@ def _panel_schema(editing=False):
                         vol.Optional(const.CONF_PASSWORD): selector.TextSelector(
                             {"type": "password"}
                         ),
-                        vol.Optional(const.CONF_TLS_MODE, default=TLSMode.SYSTEM): _select(
+                        vol.Optional(const.CONF_TLS_MODE): _select(
                             TLSMode, translation_key="tls_mode"
                         ),
                         vol.Optional(const.CONF_TLS_CERTIFICATE): selector.TextSelector(
@@ -156,9 +156,13 @@ def _panel_form(panel):
     # Present old YAML TLS settings through the new certificate selector.
     if const.CONF_VERIFY_SSL in panel:
         verify_ssl = panel.pop(const.CONF_VERIFY_SSL)
+        url = panel[const.CONF_URL]
+        if isinstance(url, dict):
+            url = url[const.CONF_DEFAULT]
         panel.setdefault(
             const.CONF_TLS_MODE,
-            TLSMode.SYSTEM if verify_ssl else TLSMode.DISABLED,
+            TLSMode.DISABLED if not verify_ssl and url.lower().startswith("https://")
+            else TLSMode.SYSTEM,
         )
     basic = {
         key: panel.pop(key)
