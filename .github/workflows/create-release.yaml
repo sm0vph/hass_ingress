@@ -50,6 +50,10 @@ jobs:
               env.write(f'RELEASE_VERSION={version}\n')
           PY
       - run: python -m pytest
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --test tests/adapter.test.cjs
       - name: Commit and publish
         env:
           GH_TOKEN: ${{ github.token }}
