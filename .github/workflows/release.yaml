@@ -12,17 +12,13 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-    - name: Archive
-      uses: thedoctor0/zip-release@0.7.5
-      with:
-        filename: ingress.zip
-        directory: custom_components/ingress
-    - name: Upload
-      uses: ncipollo/release-action@main
-      with:
-        allowUpdates: true
-        omitNameDuringUpdate: true
-        omitBodyDuringUpdate: true
-        artifacts: custom_components/ingress/ingress.zip
-        token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name || github.ref_name }}
+      - name: Package HACS integration
+        run: git archive --format=zip --output="$RUNNER_TEMP/ingress.zip" HEAD:custom_components/ingress
+      - name: Upload package without changing release status
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.event.release.tag_name || github.ref_name }}
+        run: gh release upload "$RELEASE_TAG" "$RUNNER_TEMP/ingress.zip" --clobber
