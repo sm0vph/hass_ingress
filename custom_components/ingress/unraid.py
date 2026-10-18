@@ -194,7 +194,7 @@ async def ensure_unraid_login(websession, cfg: "IngressCfg", *, force: bool = Fa
             data={"username": cfg.username, "password": cfg.password},
             headers=headers,
             allow_redirects=False,
-            ssl=cfg.verify_ssl,
+            ssl=cfg.ssl,
         ) as response:
             cfg.adapter_cookies.update(
                 (name, morsel.value) for name, morsel in response.cookies.items()

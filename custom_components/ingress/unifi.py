@@ -59,7 +59,7 @@ async def ensure_unifi_login(websession, cfg: "IngressCfg", *, force: bool = Fal
             },
             headers={"Host": cfg.origin.raw_authority},
             allow_redirects=False,
-            ssl=cfg.verify_ssl,
+            ssl=cfg.ssl,
         ) as response:
             update_unifi_session(response, cfg)
         return bool(cfg.adapter_cookies)

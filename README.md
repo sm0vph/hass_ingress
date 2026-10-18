@@ -1,5 +1,12 @@
 # hass_ingress
 
+Add web applications such as Node-RED, a router interface, or a monitoring tool to
+the Home Assistant sidebar. Configure panels in Home Assistant, proxy supported
+applications through its authenticated session, or embed other web pages.
+
+Start with [installation](#installation) and [graphical configuration](#graphical-configuration).
+Existing installations can [import their YAML panels](#move-existing-yaml-panels-to-the-interface).
+
 ![GitHub actions](https://github.com/lovelylain/hass_ingress/actions/workflows/validate.yaml/badge.svg)
 
 **💡 Tip:** If this project helps you, consider giving me a tip for the time I spent building this project:
@@ -7,14 +14,6 @@
 <a href="https://www.buymeacoffee.com/lovelylain" target="_blank">
   <img src="https://cdn.buymeacoffee.com/buttons/default-yellow.png" alt="Buy Me A Coffee" width="150px">
 </a>
-
-v1.2.4 Feature: [Multiple Tabs](#multiple-tabs) without reloading when switch tabs.
-
-v1.2.5 Feature: [Static Token](#static-token) public links that never expire.
-
-v1.3.0 Feature: [User Info](#user-info) support user info in headers.
-
-Hass.io provides a very nice feature called [Hass.io Ingress](https://www.home-assistant.io/blog/2019/04/15/hassio-ingress/), `hass_ingress` extracts this feature into a standalone integration, it allows you to add additional ingress panels to your Home Assistant frontend. The panels are listed in the sidebar and can contain external resources like the web frontend of your router, your monitoring system, or your media server. Home Assistant will take care of the authentication and the secure connection, so users can access the external resources without extra login.
 
 ![overview](images/overview.png)
 
@@ -58,7 +57,89 @@ _or_
 
 ## Configuration
 
-To enable Ingress panels in your installation, add the following to your `configuration.yaml` file, then restart HA:
+### Graphical configuration
+
+After installing the integration, restart Home Assistant once, then:
+
+1. Open **Settings → Devices & services → Add integration** and select **Ingress**.
+2. Select **Local UI** as the configuration mode.
+3. Open the Ingress integration and select **Add ingress**.
+4. Enter a panel identifier, its name, and its URL. For example, for a
+   Node-RED server listening at `http://127.0.0.1:45180`, use identifier `nodered`,
+   title `Node-RED`, and that URL. Use your own server's address as reachable from
+   Home Assistant. Choose an icon and administrator-only sidebar visibility if needed.
+5. Save. The panel appears without restarting Home Assistant.
+
+On Home Assistant 2025.8 and newer, each ingress appears on its own integration
+row. Use its settings button to edit it, or its menu to rename or delete it. The
+row's name also names the panel; **Show in sidebar** controls its top-level
+sidebar visibility. No device or entity is created. Identifiers stay fixed
+because access URLs and parent relationships use them.
+
+On older versions the same forms live behind the integration's **Configure**
+button instead, which offers **Add ingress**, **Edit ingress**, and
+**Delete ingress**. Nothing else changes: the fields, the validation, the stored
+values and the resulting panels are identical, and the panels are kept in the
+integration's configuration entry rather than in one row each.
+
+Deleting a parent keeps its children's settings but disables their routes and
+tokens. Home Assistant shows a repair issue. Add the parent again with the same
+identifier, or edit the affected rows to choose another valid parent.
+
+The collapsed **Advanced** section includes work and display modes, parent panels,
+the index path, token settings, and dynamic URL matching. HTTP headers and response
+rewrite rules use graphical lists of fields; no YAML editor or external agent is
+required. Clearing an optional value removes that setting.
+
+Configuration is stored by Home Assistant and survives restarts. Saving changes
+reloads Ingress and renews its sessions; open panels may need to be refreshed.
+The `ingress.reload` action reloads the selected configuration source.
+
+#### HTTPS certificates
+
+For an HTTPS proxy in `ingress` or `subapp` mode, open its settings and choose
+**Advanced → HTTPS certificate verification**:
+
+- **System trust (recommended)** uses Home Assistant's normal certificate trust.
+- **Trust a provided certificate** requires one or more CA or server certificates
+  pasted into **Trusted certificate(s) in PEM format**, including their
+  `BEGIN CERTIFICATE` and `END CERTIFICATE` lines. Only these certificates are
+  trusted for this panel. Hostname, chain, and expiry verification still apply;
+  an expired certificate or a certificate for another hostname still fails.
+- **Ignore certificate errors (unsafe)** disables server identity verification.
+  Configured credentials can reach an impersonating server. Use this only when
+  you explicitly accept that risk.
+
+These settings apply to this panel's HTTP and WebSocket proxy connections.
+Other panels, including parent and child panels, keep their own settings.
+They do not affect plain HTTP, iframe, auth, or add-on connections. To reset,
+select **System trust** and save; the stored custom certificate is removed.
+
+YAML uses `tls_mode: system` (the default), `custom`, or `disabled` on each panel.
+For `custom`, set `tls_certificate` to a YAML multiline (`|`) string containing
+the PEM certificate(s). Empty or invalid PEM is rejected when the configuration
+is loaded. Do not paste private keys.
+
+### Move existing YAML panels to the interface
+
+Open the Ingress integration's menu, choose **Reconfigure**, and select
+**Local UI**. On the first switch, confirm the import to copy the current YAML
+panels into Home Assistant's stored configuration. Cancelling leaves YAML in
+control. After the import, each panel has its own configuration row; the `ingress:` section in
+`configuration.yaml` is ignored and can be removed.
+
+Later mode switches reuse the saved UI panels rather than importing YAML again.
+
+Values referenced with `!secret` are copied as resolved values, rather than secret
+references, into Home Assistant's stored configuration. Header values and static
+tokens are masked in the forms. An administrator-only sidebar entry controls
+sidebar visibility. A static token creates a public access link that bypasses
+Home Assistant login; leave it empty unless you need that behavior.
+
+### YAML configuration
+
+To manage panels with YAML instead, add the following to your
+`configuration.yaml` file, then restart Home Assistant:
 
 ```yaml
 ingress:
@@ -121,7 +202,8 @@ After you modify the Ingress configuration, you can go to `developer-tools` page
 
 - **ingress**: map (REQUIRED) Enables the hass_ingress integration. Only allowed once.
   - **panel_name**: map (REQUIRED) Name of the panel. Only allowed once.
-    - **title**: string (REQUIRED) Friendly title for the panel. Will be used in the sidebar.
+    - **title**: string (optional) Friendly title for the panel in the sidebar. Leave unset or empty to hide the sidebar entry.
+    - **show_in_sidebar**: boolean (optional, default: true) Set to false to register the panel without a sidebar entry; the title is kept as the panel header.
     - **icon**: [icon](https://www.home-assistant.io/docs/configuration/customizing-devices/#icon) (optional) Icon for entry.
     - **require_admin**: boolean (optional, default: false) If admin access is required to see this iframe.
     - **work_mode**: string (oneof `ingress` `subapp` `iframe` `auth` `hassio` `custom`, default: ingress)
@@ -150,6 +232,8 @@ After you modify the Ingress configuration, you can go to `developer-tools` page
     - **index**: string (optional, default empty) The relative URL of index page. If the `url` is http://127.0.0.1:45180/ui/, all access must be under the /ui/ path; if the `url` is http://127.0.0.1:45180 and the `index` is /ui/, all paths of http://127.0.0.1:45180 can be accessed.
     - **parent**: string (optional, default empty) Parent ingress panel name. If non-empty, this panel will be hidden from the HA sidebar and you can access it via the `/{parent panel_name}/{child panel_name}` link. For example, the parent panel `nodered`, the sub-panel `ui` or `nodered_ui`, you can access the sub-panel through `/nodered/ui`.
     - **headers**: map (optional) Additional http headers passed to the backend service, such as `authorization` for `basic auth`.
+    - **tls_mode**: string (oneof `system` `custom` `disabled`, default: `system`) Certificate verification for this HTTPS ingress or subapp proxy; see [HTTPS certificates](#https-certificates).
+    - **tls_certificate**: string (required for `tls_mode: custom`) One or more PEM CA or server certificates, supplied as a multiline string.
     - **rewrite**: list (optional) List of response body/header rewrite rules:
       - **mode**: string (REQUIRED, oneof `body` `header`) Whether to rewrite response body or headers.
       - **path**: string (optional) URL prefix to apply this rule to, uses RegEx. E.g. `/.*` for everything.
@@ -321,3 +405,46 @@ ingress:
       # $username is user login name
       Remote-User: $username
 ```
+
+## Development
+
+Run the integration tests with Python 3.14:
+
+```sh
+python -m venv .venv
+.venv/bin/python -m pip install -r requirements-test.txt
+.venv/bin/python -m pytest
+```
+
+The tests use Home Assistant's real config and options flow managers and panel
+registration. They replace network connections and the HTTP server boundary.
+
+Two suites cover the two configuration backends:
+
+- `tests/test_config_flow.py` drives the config subentry flow that Home Assistant
+  2025.8 and newer expose.
+- `tests/test_legacy_core.py` forces the options backend on, so the same forms,
+  validation and stored fields are exercised the way an older core uses them.
+
+## Fork test release 1.6.0b1
+
+This fork incorporates upstream 1.4.0 (commit `6c88cc7`) while retaining the
+UniFi, Unraid, generic subapp and Proxmox adapters. Existing YAML remains supported.
+Adapter, backend username and backend password settings are also available in
+the advanced options of the new Home Assistant configuration forms.
+
+Legacy `verify_ssl: false` continues to work. When `tls_mode` is explicitly set,
+it takes precedence over `verify_ssl`; login requests, retries and WebSockets
+all use that resolved policy. Editing an imported panel converts the legacy flag
+to the equivalent TLS selector setting.
+
+Interactive browser sessions use upstream's cookie isolation. Panels with
+configured backend credentials intentionally share the configured account's
+server-side session, as in earlier fork versions.
+
+For testing, select prerelease **1.6.0b1** from this fork in HACS and restart Home
+Assistant. Check UniFi and Unraid login, Docker WebUI child links, Proxmox noVNC,
+console popups and mobile navigation. Back up the Home Assistant configuration
+before testing. Keep YAML mode for the first test; switching to UI mode is optional.
+If rolling back after configuration-entry migration or switching to UI mode,
+restore the configuration backup as well as version 1.5.18.
